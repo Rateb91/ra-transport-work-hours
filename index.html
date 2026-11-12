@@ -70,6 +70,6 @@ if(b.dataset.delTour){if(!confirm('Diese Tour aus der Liste entfernen? Bereits g
 if(b.dataset.delEmployee){if(!confirm('Diesen Fahrer entfernen?'))return;await run(db.from('employees').update({active:false}).eq('id',b.dataset.delEmployee));await load();}
 if(b.dataset.delShift){if(!confirm('Diesen Arbeitszeiteintrag löschen?'))return;await run(db.from('work_shifts').delete().eq('id',b.dataset.delShift));await load();}
 }catch(x){notice(x.message,true);}});
-try{if(!window.supabase?.createClient)throw Error('تعذر تحميل مكتبة الاتصال. Bitte prüfen Sie Ihre Internetverbindung oder öffnen Sie die App über den Hosting-Link.');db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);const {data:{session}}=await db.auth.getSession();if(session){user=session.user;await startApp();}db.auth.onAuthStateChange(async(_event,session)=>{if(session&&!user){user=session.user;await startApp();}});}catch(x){notice(x.message,true);}
+try{if(!window.supabase?.createClient)throw Error('Die Verbindungsbibliothek konnte nicht geladen werden. Bitte prüfen Sie Ihre Internetverbindung oder öffnen Sie die App über den Hosting-Link.');db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);const {data:{session}}=await db.auth.getSession();if(session){user=session.user;await startApp();}db.auth.onAuthStateChange(async(_event,session)=>{if(session&&!user){user=session.user;await startApp();}});}catch(x){notice(x.message,true);}
 })();
 </script></body></html>
