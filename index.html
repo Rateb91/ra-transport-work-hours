@@ -171,7 +171,7 @@ function buildTourInvoicePreview(){
  const rates=subcontractorTourDayRates.filter(x=>x.subcontractor_id===subId),unique=new Map();
  shiftsInMonth.forEach(x=>{const tour=String(x.tour_number||'').trim(),date=String(x.work_date).slice(0,10);if(!tour||!isChargeableDate(date))return;unique.set(tour+'|'+date,{tour,date});});
  const configuredTours=new Set(rates.map(r=>String(r.tour_number||'').trim().toUpperCase()).filter(Boolean));
- const grouped={};for(const item of unique.values()){const normalized=String(item.tour).trim().toUpperCase();if(!configuredTours.has(normalized))return;const day=new Date(item.date+'T00:00:00Z').getUTCDay();if(!grouped[item.tour])grouped[item.tour]={};grouped[item.tour][day]=(grouped[item.tour][day]||0)+1;}
+ const grouped={};for(const item of unique.values()){const normalized=String(item.tour).trim().toUpperCase();if(!configuredTours.has(normalized))continue;const day=new Date(item.date+'T00:00:00Z').getUTCDay();if(!grouped[item.tour])grouped[item.tour]={};grouped[item.tour][day]=(grouped[item.tour][day]||0)+1;}
  const names={1:'Montag',2:'Dienstag',3:'Mittwoch',4:'Donnerstag',5:'Freitag',6:'Samstag'},groups=[],missing=[];
  Object.entries(grouped).sort((a,b)=>a[0].localeCompare(b[0],undefined,{numeric:true})).forEach(([tour,days])=>{
   const byRate=new Map();
