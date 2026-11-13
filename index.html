@@ -166,8 +166,8 @@ $('subTourRateForm').addEventListener('submit',async e=>{e.preventDefault();try{
 let subInvoicePreviewConfirmed=false;
 function buildTourInvoicePreview(){
  const month=$('subBillingMonth').value,subId=$('subInvoiceCompany').value,sub=subcontractors.find(x=>x.id===subId);if(!month||!sub)return null;
- const staffIds=new Set(employees.filter(x=>x.subcontractor_id===subId).map(x=>x.id)),cutoff=today();
- const shiftsInMonth=shifts.filter(x=>String(x.work_date).slice(0,7)===month&&String(x.work_date).slice(0,10)<=cutoff&&staffIds.has(x.employee_id));
+ const cutoff=today();
+ const shiftsInMonth=shifts.filter(x=>String(x.work_date).slice(0,7)===month&&String(x.work_date).slice(0,10)<=cutoff);
  const rates=subcontractorTourDayRates.filter(x=>x.subcontractor_id===subId),unique=new Map();
  shiftsInMonth.forEach(x=>{const tour=String(x.tour_number||'').trim(),date=String(x.work_date).slice(0,10);if(!tour||!isChargeableDate(date))return;unique.set(tour+'|'+date,{tour,date});});
  const grouped={};for(const item of unique.values()){const day=new Date(item.date+'T00:00:00Z').getUTCDay();if(!grouped[item.tour])grouped[item.tour]={};grouped[item.tour][day]=(grouped[item.tour][day]||0)+1;}
@@ -190,7 +190,7 @@ function buildTourInvoicePreview(){
  if((specialDescription&&!specialAmount)||(!specialDescription&&specialAmount))throw Error('Bitte Beschreibung und Betrag der Sonderzahlung gemeinsam ausfüllen.');
  if(specialAmount<0||!Number.isFinite(specialAmount))throw Error('Bitte den Betrag der Sonderzahlung prüfen.');
  const baseTours=Math.round(groups.reduce((sum,x)=>sum+x.amount,0)*100)/100,diesel=Math.round(groups.reduce((sum,x)=>sum+x.diesel,0)*100)/100,other=Number($('subDeductions').value||0),base=Math.round((baseTours+specialAmount+diesel)*100)/100,discount=Math.round(base*0.08*100)/100,taxable=Math.round((base-discount-other)*100)/100,vat=Math.round(taxable*0.19*100)/100,gross=Math.round((taxable+vat)*100)/100;
- return {month,sub,rows:groups,groups,missing,baseTours,specialDescription,specialAmount,diesel,other,base,discount,taxable,vat,gross,cutoff,staffCount:staffIds.size,shiftCount:shiftsInMonth.length};
+ return {month,sub,rows:groups,groups,missing,baseTours,specialDescription,specialAmount,diesel,other,base,discount,taxable,vat,gross,cutoff,shiftCount:shiftsInMonth.length};
 }
 function renderTourInvoicePreview(){
  const p=buildTourInvoicePreview(),el=$('subInvoicePreview'),dieselEl=$('subDieselGroups');if(!p){el.classList.add('hidden');return;}
@@ -205,7 +205,7 @@ function invalidateSubInvoicePreview(){subInvoicePreviewConfirmed=false;$('creat
 ['subBillingMonth','subInvoiceCompany','subDeductions','subSpecialDescription','subSpecialAmount','subInvoiceDate'].forEach(id=>$(id).addEventListener('input',invalidateSubInvoicePreview));
 $('subDieselGroups').addEventListener('input',invalidateSubInvoicePreview);
 $('subInvoicePreview').addEventListener('input',e=>{if(e.target.matches('[data-group-diesel]'))invalidateSubInvoicePreview();});
-$('showSubInvoicePreview').addEventListener('click',()=>{try{renderTourInvoicePreview();const p=buildTourInvoicePreview();if(!p)throw Error('Bitte Abrechnungsmonat und Firma auswählen.');if(!p.staffCount)throw Error('Dieser Firma ist kein Fahrer zugeordnet. Bitte unter „Fahrer“ die Firma beim jeweiligen Fahrer auswählen und speichern.');if(!p.groups.length&&!p.specialAmount)throw Error('Keine abrechenbaren Tage oder Sonderzahlung im ausgewählten Monat bis heute gefunden.');if(p.missing.length)throw Error('Bitte zuerst Tagespreise hinterlegen: '+p.missing.join(', '));if(p.groups.some(g=>g.diesel<0)||p.other<0||p.taxable<0)throw Error('Dieselzuschläge und Abzüge prüfen. Die steuerpflichtige Summe darf nicht negativ sein.');subInvoicePreviewConfirmed=true;$('createSubInvoice').disabled=false;}catch(x){invalidateSubInvoicePreview();notice(x.message,true);}});
+$('showSubInvoicePreview').addEventListener('click',()=>{try{renderTourInvoicePreview();const p=buildTourInvoicePreview();if(!p)throw Error('Bitte Abrechnungsmonat und Firma auswählen.');if(!p.groups.length&&!p.specialAmount)throw Error('Keine abrechenbaren Tage oder Sonderzahlung im ausgewählten Monat bis heute gefunden.');if(p.missing.length)throw Error('Bitte zuerst Tagespreise hinterlegen: '+p.missing.join(', '));if(p.groups.some(g=>g.diesel<0)||p.other<0||p.taxable<0)throw Error('Dieselzuschläge und Abzüge prüfen. Die steuerpflichtige Summe darf nicht negativ sein.');subInvoicePreviewConfirmed=true;$('createSubInvoice').disabled=false;}catch(x){invalidateSubInvoicePreview();notice(x.message,true);}});
 $('subInvoiceForm').addEventListener('submit',async e=>{e.preventDefault();try{
  if(!subInvoicePreviewConfirmed)throw Error('Bitte zuerst die Monatsabrechnung anzeigen und prüfen.');
  const p=buildTourInvoicePreview();if(!p)throw Error('Bitte Abrechnungsmonat und Firma auswählen.');
