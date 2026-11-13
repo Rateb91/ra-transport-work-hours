@@ -140,28 +140,56 @@ function printSubInvoice(id){
  w.document.open();w.document.write(html);w.document.close();w.focus();w.onload=()=>w.print();
 }
 $('subcontractorForm').addEventListener('submit',async e=>{e.preventDefault();try{
- const payload={user_id:user.id,company_name:$('subCompany').value.trim(),contact_name:$('subContact').value.trim(),email:$('subEmail').value.trim(),phone:$('subPhone').value.trim(),tax_number:$('subTax').value.trim(),hourly_rate:Number($('subRate').value),vat_rate:Number($('subVat').value)};
- if(payload.hourly_rate<0||payload.vat_rate<0||payload.vat_rate>100)throw Error('Bitte Stundensatz und Umsatzsteuer prüfen.');
- await run(db.from('subcontractors').insert(payload));$('subcontractorForm').reset();$('subVat').value='19';await load();notice('Subunternehmer-Firma gespeichert.');
+ const payload={user_id:user.id,company_name:$('subCompany').value.trim(),contact_name:$('subContact').value.trim(),email:$('subEmail').value.trim(),phone:$('subPhone').value.trim(),tax_number:$('subTax').value.trim(),hourly_rate:0,vat_rate:19};
+ await run(db.from('subcontractors').insert(payload));$('subcontractorForm').reset();await load();notice('Subunternehmer-Firma gespeichert.');
  }catch(x){notice(x.message,true);}});
-$('subInvoiceForm').addEventListener('submit',async e=>{e.preventDefault();try{
+$('subTourRateForm').addEventListener('submit',async e=>{e.preventDefault();try{
+ const company=$('rateCompany').value,tour=$('rateTour').value,weekday=Number($('rateWeekday').value),saturday=Number($('rateSaturday').value);
+ if(!company||!tour||weekday<0||saturday<0)throw Error('Bitte Firma, Tour und gültige Tagespreise auswählen.');
+ const existing=subcontractorTourRates.find(x=>x.subcontractor_id===company&&x.tour_number===tour);
+ const payload={user_id:user.id,subcontractor_id:company,tour_number:tour,weekday_rate:weekday,saturday_rate:saturday};
+ if(existing)await run(db.from('subcontractor_tour_rates').update(payload).eq('id',existing.id));else await run(db.from('subcontractor_tour_rates').insert(payload));
+ $('rateWeekday').value='';$('rateSaturday').value='';await load();notice('Tourpreise gespeichert.');
+ }catch(x){notice(x.message,true);}});
+function buildTourInvoicePreview(){
  const month=$('subBillingMonth').value,subId=$('subInvoiceCompany').value,sub=subcontractors.find(x=>x.id===subId);
- if(!month||!sub)throw Error('Bitte Monat und Firma auswählen.');
- if(subInvoices.some(x=>x.subcontractor_id===subId&&String(x.billing_month).slice(0,7)===month))throw Error('Für diese Firma existiert bereits eine Monatsabrechnung.');
- const staff=employees.filter(x=>x.subcontractor_id===subId),rows=shifts.filter(x=>String(x.work_date).slice(0,7)===month&&staff.some(e=>e.id===x.employee_id));
- if(!rows.length)throw Error('Für diese Firma und diesen Monat gibt es keine erfassten Arbeitsstunden.');
- const grouped={};rows.forEach(r=>{const emp=staff.find(x=>x.id===r.employee_id);if(!grouped[emp.id])grouped[emp.id]={employee_name:emp.name,employee_number:emp.employee_number,total_hours:0};grouped[emp.id].total_hours+=Number(r.hours);});
- const totalHours=rows.reduce((a,x)=>a+Number(x.hours),0),net=Math.round(totalHours*Number(sub.hourly_rate)*100)/100,vat=Math.round(net*Number(sub.vat_rate))/100,gross=Math.round((net+vat)*100)/100;
- const year=month.slice(0,4),prefix='SU-'+year+'-',serial=Math.max(0,...subInvoices.filter(x=>String(x.invoice_number).startsWith(prefix)).map(x=>Number(String(x.invoice_number).slice(prefix.length))||0))+1,invoiceNumber=prefix+String(serial).padStart(4,'0');
- const inv=await run(db.from('subcontractor_invoices').insert({user_id:user.id,subcontractor_id:subId,invoice_number:invoiceNumber,billing_month:month+'-01',invoice_date:$('subInvoiceDate').value,total_hours:totalHours,hourly_rate:Number(sub.hourly_rate),net_amount:net,vat_rate:Number(sub.vat_rate),vat_amount:vat,gross_amount:gross}).select('*').single());
- const lines=Object.values(grouped).map(x=>({user_id:user.id,invoice_id:inv.id,employee_name:x.employee_name,employee_number:x.employee_number,total_hours:x.total_hours,hourly_rate:Number(sub.hourly_rate),line_amount:Math.round(x.total_hours*Number(sub.hourly_rate)*100)/100}));
+ if(!month||!sub)return null;
+ const staffIds=new Set(employees.filter(x=>x.subcontractor_id===subId).map(x=>x.id));
+ const shiftsInMonth=shifts.filter(x=>String(x.work_date).slice(0,7)===month&&staffIds.has(x.employee_id));
+ const rates=subcontractorTourRates.filter(x=>x.subcontractor_id===subId);
+ const unique=new Map();
+ shiftsInMonth.forEach(x=>{const tour=String(x.tour_number||'').trim(),date=String(x.work_date).slice(0,10);if(!tour||!isChargeableDate(date))return;unique.set(tour+'|'+date,{tour,date});});
+ const grouped={};for(const item of unique.values()){if(!grouped[item.tour])grouped[item.tour]={weekday:0,saturday:0};const day=new Date(item.date+'T00:00:00Z').getUTCDay();if(day===6)grouped[item.tour].saturday++;else grouped[item.tour].weekday++;}
+ const rows=Object.entries(grouped).sort((x,y)=>x[0].localeCompare(y[0],undefined,{numeric:true})).map(([tour,counts])=>{const rate=rates.find(r=>r.tour_number===tour);return {tour,...counts,weekdayRate:Number(rate?.weekday_rate||0),saturdayRate:Number(rate?.saturday_rate||0)};});
+ const missing=rows.filter(x=>!rates.some(r=>r.tour_number===x.tour));
+ const baseTours=rows.reduce((sum,x)=>sum+x.weekday*x.weekdayRate+x.saturday*x.saturdayRate,0);
+ const diesel=Number($('subDiesel').value||0),other=Number($('subDeductions').value||0),base=Math.round((baseTours+diesel)*100)/100,discount=Math.round(base*0.08*100)/100,taxable=Math.round((base-discount-other)*100)/100,vat=Math.round(taxable*0.19*100)/100,gross=Math.round((taxable+vat)*100)/100;
+ return {month,sub,rows,missing,baseTours:Math.round(baseTours*100)/100,diesel,other,base,discount,taxable,vat,gross,uniqueDays:unique.size};
+}
+function renderTourInvoicePreview(){
+ const p=buildTourInvoicePreview(),el=$('subInvoicePreview');if(!p){el.classList.add('hidden');return;}
+ el.classList.remove('hidden');
+ const table=p.rows.length?'<div style="overflow-x:auto"><table><thead><tr><th>Tour</th><th>Werktage</th><th>Preis/Tag</th><th>Samstage</th><th>Preis/Sa.</th><th>Summe netto</th></tr></thead><tbody>'+p.rows.map(x=>'<tr><td>'+esc(x.tour)+'</td><td>'+x.weekday+'</td><td>'+eur(x.weekdayRate)+'</td><td>'+x.saturday+'</td><td>'+eur(x.saturdayRate)+'</td><td>'+eur(x.weekday*x.weekdayRate+x.saturday*x.saturdayRate)+'</td></tr>').join('')+'</tbody></table></div>':'<p>Keine abrechenbaren Einsatztage für diesen Monat gefunden.</p>';
+ el.innerHTML='<h3>Vorschau – '+esc(p.sub.company_name)+' / '+esc(p.month)+'</h3>'+table+(p.missing.length?'<p style="color:#a33">Fehlende Tourpreise: '+p.missing.map(x=>esc(x.tour)).join(', ')+'</p>':'')+'<div style="max-width:460px;margin-left:auto"><p>Touren netto: <b>'+eur(p.baseTours)+'</b><br>Dieselzuschlag: <b>'+eur(p.diesel)+'</b><br>Zwischensumme netto: <b>'+eur(p.base)+'</b><br>8 % Abzug: <b>− '+eur(p.discount)+'</b><br>Weitere Abzüge: <b>− '+eur(p.other)+'</b><br>Netto nach Abzügen: <b>'+eur(p.taxable)+'</b><br>Umsatzsteuer 19 %: <b>'+eur(p.vat)+'</b></p><h3>Gesamtbetrag brutto: '+eur(p.gross)+'</h3></div>';
+}
+['subBillingMonth','subInvoiceCompany','subDiesel','subDeductions'].forEach(id=>$(id).addEventListener('input',renderTourInvoicePreview));
+$('subInvoiceForm').addEventListener('submit',async e=>{e.preventDefault();try{
+ const p=buildTourInvoicePreview();if(!p)throw Error('Bitte Abrechnungsmonat und Firma auswählen.');
+ if(subInvoices.some(x=>x.subcontractor_id===p.sub.id&&String(x.billing_month).slice(0,7)===p.month))throw Error('Für diese Firma existiert bereits eine Monatsabrechnung.');
+ if(!p.rows.length)throw Error('Keine abrechenbaren Werktage oder Samstage gefunden.');
+ if(p.missing.length)throw Error('Bitte zuerst Tagespreise für folgende Touren hinterlegen: '+p.missing.map(x=>x.tour).join(', '));
+ if(p.diesel<0||p.other<0||p.taxable<0)throw Error('Dieselzuschlag und Abzüge prüfen. Die steuerpflichtige Summe darf nicht negativ sein.');
+ const year=p.month.slice(0,4),prefix='SU-'+year+'-',serial=Math.max(0,...subInvoices.filter(x=>String(x.invoice_number).startsWith(prefix)).map(x=>Number(String(x.invoice_number).slice(prefix.length))||0))+1,invoiceNumber=prefix+String(serial).padStart(4,'0');
+ const inv=await run(db.from('subcontractor_invoices').insert({user_id:user.id,subcontractor_id:p.sub.id,invoice_number:invoiceNumber,billing_month:p.month+'-01',invoice_date:$('subInvoiceDate').value,total_hours:0,hourly_rate:0,net_amount:p.taxable,vat_rate:19,vat_amount:p.vat,gross_amount:p.gross,base_amount:p.base,diesel_surcharge:p.diesel,discount_rate:8,discount_amount:p.discount,other_deductions:p.other,taxable_amount:p.taxable,notes:'Tourenabrechnung; Sonntage und gesetzliche Feiertage nicht berechnet.'}).select('*').single());
+ const lines=p.rows.map(x=>({user_id:user.id,invoice_id:inv.id,employee_name:'Tour '+x.tour,employee_number:'',total_hours:x.weekday+x.saturday,hourly_rate:0,line_amount:Math.round((x.weekday*x.weekdayRate+x.saturday*x.saturdayRate)*100)/100,tour_number:x.tour,weekday_count:x.weekday,saturday_count:x.saturday,weekday_rate:x.weekdayRate,saturday_rate:x.saturdayRate,base_amount:Math.round((x.weekday*x.weekdayRate+x.saturday*x.saturdayRate)*100)/100}));
  await run(db.from('subcontractor_invoice_lines').insert(lines));
- $('subInvoicePreview').classList.remove('hidden');$('subInvoicePreview').textContent='Abrechnung '+invoiceNumber+' erstellt: '+hours(totalHours)+', netto '+eur(net)+', MwSt. '+eur(vat)+', brutto '+eur(gross)+'.';
- await load();notice('Monatsabrechnung erstellt.');
+ $('subInvoicePreview').innerHTML='<h3>Abrechnung '+esc(invoiceNumber)+' gespeichert</h3><p>Netto nach Abzügen: <b>'+eur(p.taxable)+'</b><br>Umsatzsteuer 19 %: <b>'+eur(p.vat)+'</b><br>Brutto: <b>'+eur(p.gross)+'</b></p>';
+ await load();notice('Touren-Monatsabrechnung erstellt.');
  }catch(x){notice(x.message,true);}});
 $('subBillingMonth').value=monthNow();$('subInvoiceDate').value=today();
 document.addEventListener('click',async e=>{
  const assign=e.target.closest('[data-save-assign]');if(assign){try{const sel=document.querySelector('[data-assign-sub="'+assign.dataset.saveAssign+'"]');await run(db.from('employees').update({subcontractor_id:sel.value||null}).eq('id',assign.dataset.saveAssign));await load();notice('Fahrer-Zuordnung gespeichert.');}catch(x){notice(x.message,true);}return;}
+ const delRate=e.target.closest('[data-del-sub-rate]');if(delRate){try{await run(db.from('subcontractor_tour_rates').delete().eq('id',delRate.dataset.delSubRate));await load();notice('Tourpreis gelöscht.');}catch(x){notice(x.message,true);}return;}
  const print=e.target.closest('[data-sub-print]');if(print){printSubInvoice(print.dataset.subPrint);return;}
  const save=e.target.closest('[data-sub-save]');if(save){try{const id=save.dataset.subSave,inv=subInvoices.find(x=>x.id===id),status=document.querySelector('[data-sub-status="'+id+'"]').value,paid=Number(document.querySelector('[data-sub-paid="'+id+'"]').value||0);if(paid<0||paid>Number(inv.gross_amount))throw Error('Bezahlter Betrag ist ungültig.');await run(db.from('subcontractor_invoices').update({payment_status:status,paid_amount:paid}).eq('id',id));await load();notice('Zahlungsstatus gespeichert.');}catch(x){notice(x.message,true);}return;}
 });
