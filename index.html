@@ -52,7 +52,7 @@ const $=id=>document.getElementById(id);let db,user,tours=[],employees=[],shifts
 function notice(msg,bad=false){$('notice').textContent=msg;$('notice').className='msg'+(bad?' error':'');}
 function clearNotice(){$('notice').className='msg hidden';}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-function today(){return new Date().toLocaleDateString('en-CA');}
+function today(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function monthNow(){return today().slice(0,7);}
 function hours(n){return Number(n||0).toLocaleString('de-DE',{maximumFractionDigits:2})+' Std.';}
 async function run(q){const {data,error}=await q;if(error)throw error;return data;}
@@ -125,8 +125,10 @@ function renderFinanzen(){
  $('subInvoiceCompany').innerHTML=companyOptions;$('rateCompany').innerHTML=companyOptions;
  const companyNames=Object.fromEntries(subcontractors.map(s=>[s.id,s.company_name]));
  const dayNames={1:'Montag',2:'Dienstag',3:'Mittwoch',4:'Donnerstag',5:'Freitag',6:'Samstag'};
- const rows=subcontractorTourDayRates.map(x=>'<tr><td>'+esc(companyNames[x.subcontractor_id]||'—')+'</td><td>'+esc(x.tour_number)+'</td><td>'+dayNames[x.weekday]+'</td><td>'+eur(x.daily_rate)+'</td><td><button type="button" class="danger" data-del-sub-day-rate="'+x.id+'">Löschen</button></td></tr>').join('');
- $('subcontractorRows').innerHTML='<h4>Gespeicherte Preise</h4>'+(rows?'<div style="overflow-x:auto"><table><thead><tr><th>Firma</th><th>Tour</th><th>Tag</th><th>Preis netto</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>':'<p class="muted">Noch keine Preise hinzugefügt.</p>');
+ const priceGroups=new Map();
+ subcontractorTourDayRates.forEach(x=>{const key=x.subcontractor_id+'|'+String(x.tour_number||'').trim().toUpperCase()+'|'+Number(x.daily_rate).toFixed(2);if(!priceGroups.has(key))priceGroups.set(key,{companyId:x.subcontractor_id,tour:String(x.tour_number||'').trim(),rate:Number(x.daily_rate),days:[],ids:[]});const g=priceGroups.get(key);g.days.push(Number(x.weekday));g.ids.push(x.id);});
+ const rows=[...priceGroups.values()].sort((a,b)=>(companyNames[a.companyId]||'').localeCompare(companyNames[b.companyId]||'')||a.tour.localeCompare(b.tour,undefined,{numeric:true})||a.rate-b.rate).map(g=>'<tr><td>'+esc(companyNames[g.companyId]||'—')+'</td><td>'+esc(g.tour)+'</td><td>'+g.days.sort((a,b)=>a-b).map(d=>dayNames[d]).join(' + ')+'</td><td>'+eur(g.rate)+'</td><td><button type="button" class="danger" data-del-sub-day-rate-group="'+g.ids.join(',')+'">Gruppe löschen</button></td></tr>').join('');
+ $('subcontractorRows').innerHTML='<h4>Gespeicherte Preisgruppen</h4><p class="muted">Tage mit identischem Preis derselben Tour werden zusammen angezeigt.</p>'+(rows?'<div style="overflow-x:auto"><table><thead><tr><th>Firma</th><th>Tour</th><th>Tage (gleicher Preis)</th><th>Preis netto / Tag</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>':'<p class="muted">Noch keine Preise hinzugefügt.</p>');
  $('subInvoiceRows').innerHTML=subInvoices.length?'<div style="overflow-x:auto"><table><thead><tr><th>Rechnung</th><th>Firma</th><th>Monat</th><th>Netto</th><th>Brutto</th><th>Status</th><th>Bezahlt</th><th></th></tr></thead><tbody>'+subInvoices.map(x=>'<tr><td>'+esc(x.invoice_number)+'</td><td>'+esc(companyNames[x.subcontractor_id]||'—')+'</td><td>'+String(x.billing_month).slice(0,7)+'</td><td>'+eur(x.net_amount)+'</td><td>'+eur(x.gross_amount)+'</td><td><select data-sub-status="'+x.id+'"><option value="open" '+(x.payment_status==='open'?'selected':'')+'>Offen</option><option value="partial" '+(x.payment_status==='partial'?'selected':'')+'>Teilweise</option><option value="paid" '+(x.payment_status==='paid'?'selected':'')+'>Bezahlt</option><option value="cancelled" '+(x.payment_status==='cancelled'?'selected':'')+'>Storniert</option></select></td><td><input type="number" min="0" step="0.01" max="'+Number(x.gross_amount)+'" value="'+Number(x.paid_amount)+'" data-sub-paid="'+x.id+'" style="max-width:100px"></td><td><button type="button" class="secondary" data-sub-print="'+x.id+'">Drucken</button> <button type="button" data-sub-save="'+x.id+'">Speichern</button></td></tr>').join('')+'</tbody></table></div>':'<p class="muted">Noch keine Monatsabrechnungen vorhanden.</p>';
 }
 function easterSunday(year){const a=year%19,b=Math.floor(year/100),c=year%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),month=Math.floor((h+l-7*m+114)/31),day=((h+l-7*m+114)%31)+1;return new Date(Date.UTC(year,month-1,day));}
@@ -173,7 +175,7 @@ function buildTourInvoicePreview(){
  Object.entries(grouped).sort((a,b)=>a[0].localeCompare(b[0],undefined,{numeric:true})).forEach(([tour,days])=>{
   const byRate=new Map();
   Object.entries(days).forEach(([dayStr,count])=>{
-   const day=Number(dayStr),rate=rates.find(r=>r.tour_number===tour&&Number(r.weekday)===day);
+   const day=Number(dayStr),rate=rates.find(r=>String(r.tour_number||'').trim().toUpperCase()===String(tour).trim().toUpperCase()&&Number(r.weekday)===day);
    if(!rate){missing.push(tour+' – '+names[day]);return;}
    const price=Number(rate.daily_rate),key=subId+'|'+month+'|'+tour+'|'+price.toFixed(2);
    if(!byRate.has(key))byRate.set(key,{key,tour,rate:price,days:[],count:0,labels:[]});
@@ -188,7 +190,7 @@ function buildTourInvoicePreview(){
  if((specialDescription&&!specialAmount)||(!specialDescription&&specialAmount))throw Error('Bitte Beschreibung und Betrag der Sonderzahlung gemeinsam ausfüllen.');
  if(specialAmount<0||!Number.isFinite(specialAmount))throw Error('Bitte den Betrag der Sonderzahlung prüfen.');
  const baseTours=Math.round(groups.reduce((sum,x)=>sum+x.amount,0)*100)/100,diesel=Math.round(groups.reduce((sum,x)=>sum+x.diesel,0)*100)/100,other=Number($('subDeductions').value||0),base=Math.round((baseTours+specialAmount+diesel)*100)/100,discount=Math.round(base*0.08*100)/100,taxable=Math.round((base-discount-other)*100)/100,vat=Math.round(taxable*0.19*100)/100,gross=Math.round((taxable+vat)*100)/100;
- return {month,sub,rows:groups,groups,missing,baseTours,specialDescription,specialAmount,diesel,other,base,discount,taxable,vat,gross,cutoff};
+ return {month,sub,rows:groups,groups,missing,baseTours,specialDescription,specialAmount,diesel,other,base,discount,taxable,vat,gross,cutoff,staffCount:staffIds.size,shiftCount:shiftsInMonth.length};
 }
 function renderTourInvoicePreview(){
  const p=buildTourInvoicePreview(),el=$('subInvoicePreview'),dieselEl=$('subDieselGroups');if(!p){el.classList.add('hidden');return;}
@@ -203,7 +205,7 @@ function invalidateSubInvoicePreview(){subInvoicePreviewConfirmed=false;$('creat
 ['subBillingMonth','subInvoiceCompany','subDeductions','subSpecialDescription','subSpecialAmount','subInvoiceDate'].forEach(id=>$(id).addEventListener('input',invalidateSubInvoicePreview));
 $('subDieselGroups').addEventListener('input',invalidateSubInvoicePreview);
 $('subInvoicePreview').addEventListener('input',e=>{if(e.target.matches('[data-group-diesel]'))invalidateSubInvoicePreview();});
-$('showSubInvoicePreview').addEventListener('click',()=>{try{renderTourInvoicePreview();const p=buildTourInvoicePreview();if(!p)throw Error('Bitte Abrechnungsmonat und Firma auswählen.');if(!p.groups.length&&!p.specialAmount)throw Error('Keine abrechenbaren Tage oder Sonderzahlung vorhanden.');if(p.missing.length)throw Error('Bitte zuerst Tagespreise hinterlegen: '+p.missing.join(', '));if(p.groups.some(g=>g.diesel<0)||p.other<0||p.taxable<0)throw Error('Dieselzuschläge und Abzüge prüfen. Die steuerpflichtige Summe darf nicht negativ sein.');subInvoicePreviewConfirmed=true;$('createSubInvoice').disabled=false;}catch(x){invalidateSubInvoicePreview();notice(x.message,true);}});
+$('showSubInvoicePreview').addEventListener('click',()=>{try{renderTourInvoicePreview();const p=buildTourInvoicePreview();if(!p)throw Error('Bitte Abrechnungsmonat und Firma auswählen.');if(!p.staffCount)throw Error('Dieser Firma ist kein Fahrer zugeordnet. Bitte unter „Fahrer“ die Firma beim jeweiligen Fahrer auswählen und speichern.');if(!p.groups.length&&!p.specialAmount)throw Error('Keine abrechenbaren Tage oder Sonderzahlung im ausgewählten Monat bis heute gefunden.');if(p.missing.length)throw Error('Bitte zuerst Tagespreise hinterlegen: '+p.missing.join(', '));if(p.groups.some(g=>g.diesel<0)||p.other<0||p.taxable<0)throw Error('Dieselzuschläge und Abzüge prüfen. Die steuerpflichtige Summe darf nicht negativ sein.');subInvoicePreviewConfirmed=true;$('createSubInvoice').disabled=false;}catch(x){invalidateSubInvoicePreview();notice(x.message,true);}});
 $('subInvoiceForm').addEventListener('submit',async e=>{e.preventDefault();try{
  if(!subInvoicePreviewConfirmed)throw Error('Bitte zuerst die Monatsabrechnung anzeigen und prüfen.');
  const p=buildTourInvoicePreview();if(!p)throw Error('Bitte Abrechnungsmonat und Firma auswählen.');
@@ -222,6 +224,7 @@ $('subInvoiceForm').addEventListener('submit',async e=>{e.preventDefault();try{
 $('subBillingMonth').value=monthNow();$('subInvoiceDate').value=today();
 document.addEventListener('click',async e=>{
  const assign=e.target.closest('[data-save-assign]');if(assign){try{const sel=document.querySelector('[data-assign-sub="'+assign.dataset.saveAssign+'"]');await run(db.from('employees').update({subcontractor_id:sel.value||null}).eq('id',assign.dataset.saveAssign));await load();notice('Fahrer-Zuordnung gespeichert.');}catch(x){notice(x.message,true);}return;}
+ const delDayRateGroup=e.target.closest('[data-del-sub-day-rate-group]');if(delDayRateGroup){try{const ids=delDayRateGroup.dataset.delSubDayRateGroup.split(',').filter(Boolean);await run(db.from('subcontractor_tour_day_rates').delete().in('id',ids));await load();notice('Preisgruppe gelöscht.');}catch(x){notice(x.message,true);}return;}
  const delDayRate=e.target.closest('[data-del-sub-day-rate]');if(delDayRate){try{await run(db.from('subcontractor_tour_day_rates').delete().eq('id',delDayRate.dataset.delSubDayRate));await load();notice('Sonderpreis gelöscht.');}catch(x){notice(x.message,true);}return;}
  const delRate=e.target.closest('[data-del-sub-rate]');if(delRate){try{await run(db.from('subcontractor_tour_rates').delete().eq('id',delRate.dataset.delSubRate));await load();notice('Tourpreis gelöscht.');}catch(x){notice(x.message,true);}return;}
  const print=e.target.closest('[data-sub-print]');if(print){printSubInvoice(print.dataset.subPrint);return;}
