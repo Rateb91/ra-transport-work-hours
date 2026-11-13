@@ -115,6 +115,47 @@ $('backupImportBtn').addEventListener('click',()=>$('backupFile').click());
 $('backupFile').addEventListener('change',async e=>{await importBackup(e.target.files?.[0]);e.target.value='';});
 $('tourChecklist').addEventListener('change',e=>{const id=e.target.dataset.tourCheck;if(id){const inp=document.querySelector(`[data-tour-hours="${id}"]`);if(inp)inp.disabled=!e.target.checked;}updateSelectedHours();});
 $('tourChecklist').addEventListener('input',updateSelectedHours);
+
+function renderFinanzen(){
+ $('subInvoiceCompany').innerHTML='<option value="">Firma auswählen</option>'+subcontractors.map(s=>'<option value="'+s.id+'">'+esc(s.company_name)+' – '+eur(s.hourly_rate)+'/Std.</option>').join('');
+ $('subcontractorRows').innerHTML=subcontractors.length?'<div style="overflow-x:auto"><table><thead><tr><th>Firma</th><th>Zugeordnete Fahrer</th><th>Stundensatz netto</th><th>MwSt.</th></tr></thead><tbody>'+subcontractors.map(s=>'<tr><td>'+esc(s.company_name)+'</td><td>'+ (employees.filter(e=>e.subcontractor_id===s.id).map(e=>esc(e.name)).join(', ')||'—')+'</td><td>'+eur(s.hourly_rate)+'</td><td>'+Number(s.vat_rate)+'%</td></tr>').join('')+'</tbody></table></div>':'<p class="muted">Noch keine Subunternehmer-Firmen angelegt.</p>';
+ const companyNames=Object.fromEntries(subcontractors.map(s=>[s.id,s.company_name]));
+ $('subInvoiceRows').innerHTML=subInvoices.length?'<div style="overflow-x:auto"><table><thead><tr><th>Rechnung</th><th>Firma</th><th>Monat</th><th>Stunden</th><th>Netto</th><th>Brutto</th><th>Status</th><th>Bezahlt</th><th></th></tr></thead><tbody>'+subInvoices.map(x=>'<tr><td>'+esc(x.invoice_number)+'</td><td>'+esc(companyNames[x.subcontractor_id]||'—')+'</td><td>'+String(x.billing_month).slice(0,7)+'</td><td>'+hours(x.total_hours)+'</td><td>'+eur(x.net_amount)+'</td><td>'+eur(x.gross_amount)+'</td><td><select data-sub-status="'+x.id+'"><option value="open" '+(x.payment_status==='open'?'selected':'')+'>Offen</option><option value="partial" '+(x.payment_status==='partial'?'selected':'')+'>Teilweise</option><option value="paid" '+(x.payment_status==='paid'?'selected':'')+'>Bezahlt</option><option value="cancelled" '+(x.payment_status==='cancelled'?'selected':'')+'>Storniert</option></select></td><td><input type="number" min="0" step="0.01" max="'+Number(x.gross_amount)+'" value="'+Number(x.paid_amount)+'" data-sub-paid="'+x.id+'" style="max-width:110px"></td><td><button type="button" class="secondary" data-sub-print="'+x.id+'">Drucken</button> <button type="button" data-sub-save="'+x.id+'">Speichern</button></td></tr>').join('')+'</tbody></table></div>':'<p class="muted">Noch keine Monatsabrechnungen vorhanden.</p>';
+}
+function printSubInvoice(id){
+ const inv=subInvoices.find(x=>x.id===id);if(!inv)return;
+ const sub=subcontractors.find(x=>x.id===inv.subcontractor_id),lines=subInvoiceLines.filter(x=>x.invoice_id===id);
+ const w=window.open('','_blank','width=900,height=750');if(!w){notice('Bitte Pop-ups für den Druck erlauben.',true);return;}
+ const html='<!doctype html><html lang="de"><head><meta charset="utf-8"><title>'+esc(inv.invoice_number)+'</title><style>body{font-family:Arial;padding:38px;color:#182522}h1{color:#06332e}table{width:100%;border-collapse:collapse;margin-top:25px}td,th{padding:10px;border-bottom:1px solid #ddd;text-align:left}.right{text-align:right}</style></head><body><h1>Monatsabrechnung '+esc(inv.invoice_number)+'</h1><h2>RA Transport</h2><p>Subunternehmer: <b>'+esc(sub?.company_name||'')+'</b><br>Abrechnungsmonat: '+String(inv.billing_month).slice(0,7)+'<br>Rechnungsdatum: '+esc(inv.invoice_date)+'</p><table><thead><tr><th>Fahrer</th><th>Personalnummer</th><th>Stunden</th><th>Stundensatz</th><th class="right">Netto</th></tr></thead><tbody>'+lines.map(x=>'<tr><td>'+esc(x.employee_name)+'</td><td>'+esc(x.employee_number)+'</td><td>'+hours(x.total_hours)+'</td><td>'+eur(x.hourly_rate)+'</td><td class="right">'+eur(x.line_amount)+'</td></tr>').join('')+'</tbody></table><p>Netto: <b>'+eur(inv.net_amount)+'</b><br>Umsatzsteuer '+Number(inv.vat_rate)+'%: <b>'+eur(inv.vat_amount)+'</b></p><h2>Gesamtbetrag: '+eur(inv.gross_amount)+'</h2></body></html>';
+ w.document.open();w.document.write(html);w.document.close();w.focus();w.onload=()=>w.print();
+}
+$('subcontractorForm').addEventListener('submit',async e=>{e.preventDefault();try{
+ const payload={user_id:user.id,company_name:$('subCompany').value.trim(),contact_name:$('subContact').value.trim(),email:$('subEmail').value.trim(),phone:$('subPhone').value.trim(),tax_number:$('subTax').value.trim(),hourly_rate:Number($('subRate').value),vat_rate:Number($('subVat').value)};
+ if(payload.hourly_rate<0||payload.vat_rate<0||payload.vat_rate>100)throw Error('Bitte Stundensatz und Umsatzsteuer prüfen.');
+ await run(db.from('subcontractors').insert(payload));$('subcontractorForm').reset();$('subVat').value='19';await load();notice('Subunternehmer-Firma gespeichert.');
+ }catch(x){notice(x.message,true);}});
+$('subInvoiceForm').addEventListener('submit',async e=>{e.preventDefault();try{
+ const month=$('subBillingMonth').value,subId=$('subInvoiceCompany').value,sub=subcontractors.find(x=>x.id===subId);
+ if(!month||!sub)throw Error('Bitte Monat und Firma auswählen.');
+ if(subInvoices.some(x=>x.subcontractor_id===subId&&String(x.billing_month).slice(0,7)===month))throw Error('Für diese Firma existiert bereits eine Monatsabrechnung.');
+ const staff=employees.filter(x=>x.subcontractor_id===subId),rows=shifts.filter(x=>String(x.work_date).slice(0,7)===month&&staff.some(e=>e.id===x.employee_id));
+ if(!rows.length)throw Error('Für diese Firma und diesen Monat gibt es keine erfassten Arbeitsstunden.');
+ const grouped={};rows.forEach(r=>{const emp=staff.find(x=>x.id===r.employee_id);if(!grouped[emp.id])grouped[emp.id]={employee_name:emp.name,employee_number:emp.employee_number,total_hours:0};grouped[emp.id].total_hours+=Number(r.hours);});
+ const totalHours=rows.reduce((a,x)=>a+Number(x.hours),0),net=Math.round(totalHours*Number(sub.hourly_rate)*100)/100,vat=Math.round(net*Number(sub.vat_rate))/100,gross=Math.round((net+vat)*100)/100;
+ const year=month.slice(0,4),prefix='SU-'+year+'-',serial=Math.max(0,...subInvoices.filter(x=>String(x.invoice_number).startsWith(prefix)).map(x=>Number(String(x.invoice_number).slice(prefix.length))||0))+1,invoiceNumber=prefix+String(serial).padStart(4,'0');
+ const inv=await run(db.from('subcontractor_invoices').insert({user_id:user.id,subcontractor_id:subId,invoice_number:invoiceNumber,billing_month:month+'-01',invoice_date:$('subInvoiceDate').value,total_hours:totalHours,hourly_rate:Number(sub.hourly_rate),net_amount:net,vat_rate:Number(sub.vat_rate),vat_amount:vat,gross_amount:gross}).select('*').single());
+ const lines=Object.values(grouped).map(x=>({user_id:user.id,invoice_id:inv.id,employee_name:x.employee_name,employee_number:x.employee_number,total_hours:x.total_hours,hourly_rate:Number(sub.hourly_rate),line_amount:Math.round(x.total_hours*Number(sub.hourly_rate)*100)/100}));
+ await run(db.from('subcontractor_invoice_lines').insert(lines));
+ $('subInvoicePreview').classList.remove('hidden');$('subInvoicePreview').textContent='Abrechnung '+invoiceNumber+' erstellt: '+hours(totalHours)+', netto '+eur(net)+', MwSt. '+eur(vat)+', brutto '+eur(gross)+'.';
+ await load();notice('Monatsabrechnung erstellt.');
+ }catch(x){notice(x.message,true);}});
+$('subBillingMonth').value=monthNow();$('subInvoiceDate').value=today();
+document.addEventListener('click',async e=>{
+ const assign=e.target.closest('[data-save-assign]');if(assign){try{const sel=document.querySelector('[data-assign-sub="'+assign.dataset.saveAssign+'"]');await run(db.from('employees').update({subcontractor_id:sel.value||null}).eq('id',assign.dataset.saveAssign));await load();notice('Fahrer-Zuordnung gespeichert.');}catch(x){notice(x.message,true);}return;}
+ const print=e.target.closest('[data-sub-print]');if(print){printSubInvoice(print.dataset.subPrint);return;}
+ const save=e.target.closest('[data-sub-save]');if(save){try{const id=save.dataset.subSave,inv=subInvoices.find(x=>x.id===id),status=document.querySelector('[data-sub-status="'+id+'"]').value,paid=Number(document.querySelector('[data-sub-paid="'+id+'"]').value||0);if(paid<0||paid>Number(inv.gross_amount))throw Error('Bezahlter Betrag ist ungültig.');await run(db.from('subcontractor_invoices').update({payment_status:status,paid_amount:paid}).eq('id',id));await load();notice('Zahlungsstatus gespeichert.');}catch(x){notice(x.message,true);}return;}
+});
+
 function syncDateRemoveButtons(){const entries=[...document.querySelectorAll('[data-work-date]')];entries.forEach(x=>{const b=x.parentElement.querySelector('[data-remove-date]');if(b)b.disabled=entries.length===1;});}
 function addDateEntry(value=''){const wrap=document.createElement('div');wrap.className='date-entry actions';wrap.innerHTML='<input type="date" data-work-date required><button type="button" class="danger" data-remove-date>Löschen</button>';const inp=wrap.querySelector('input');inp.value=value; if(!value)inp.value=today();$('workDates').appendChild(wrap);syncDateRemoveButtons();}
 $('addWorkDate').addEventListener('click',()=>addDateEntry());
