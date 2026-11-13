@@ -54,7 +54,7 @@ function today(){return new Date().toLocaleDateString('en-CA');}
 function monthNow(){return today().slice(0,7);}
 function hours(n){return Number(n||0).toLocaleString('de-DE',{maximumFractionDigits:2})+' Std.';}
 async function run(q){const {data,error}=await q;if(error)throw error;return data;}
-async function load(){[tours,employees,shifts]=await Promise.all([
+async function load(){[tours,employees,shifts,subcontractors,subInvoices,subInvoiceLines]=await Promise.all([
  run(db.from('tours').select('*').eq('active',true).order('tour_number')),
  run(db.from('employees').select('*').eq('active',true).order('employee_number')),
  run(db.from('work_shifts').select('*').order('work_date',{ascending:false})),
