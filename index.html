@@ -166,24 +166,23 @@ $('subTourRateForm').addEventListener('submit',async e=>{e.preventDefault();try{
 let subInvoicePreviewConfirmed=false;
 function buildTourInvoicePreview(){
  const month=$('subBillingMonth').value,subId=$('subInvoiceCompany').value,sub=subcontractors.find(x=>x.id===subId);if(!month||!sub)return null;
- const cutoff=today();
- const shiftsInMonth=shifts.filter(x=>String(x.work_date).slice(0,7)===month&&String(x.work_date).slice(0,10)<=cutoff);
- const rates=subcontractorTourDayRates.filter(x=>x.subcontractor_id===subId),unique=new Map();
- shiftsInMonth.forEach(x=>{const tour=String(x.tour_number||'').trim(),date=String(x.work_date).slice(0,10);if(!tour||!isChargeableDate(date))return;unique.set(tour+'|'+date,{tour,date});});
- const configuredTours=new Set(rates.map(r=>String(r.tour_number||'').trim().toUpperCase()).filter(Boolean));
- const grouped={};for(const item of unique.values()){const normalized=String(item.tour).trim().toUpperCase();if(!configuredTours.has(normalized))continue;const day=new Date(item.date+'T00:00:00Z').getUTCDay();if(!grouped[item.tour])grouped[item.tour]={};grouped[item.tour][day]=(grouped[item.tour][day]||0)+1;}
- const names={1:'Montag',2:'Dienstag',3:'Mittwoch',4:'Donnerstag',5:'Freitag',6:'Samstag'},groups=[],missing=[];
- Object.entries(grouped).sort((a,b)=>a[0].localeCompare(b[0],undefined,{numeric:true})).forEach(([tour,days])=>{
+ const cutoff=today(),monthStart=new Date(month+'-01T00:00:00Z'),monthEnd=new Date(Date.UTC(monthStart.getUTCFullYear(),monthStart.getUTCMonth()+1,0)),todayDate=new Date(cutoff+'T00:00:00Z'),lastDate=monthEnd<todayDate?monthEnd:todayDate;
+ const rates=subcontractorTourDayRates.filter(x=>x.subcontractor_id===subId&&String(x.tour_number||'').trim());
+ const names={1:'Montag',2:'Dienstag',3:'Mittwoch',4:'Donnerstag',5:'Freitag',6:'Samstag'},tourMap=new Map();
+ rates.forEach(r=>{const tour=String(r.tour_number).trim(),normalized=tour.toUpperCase(),day=Number(r.weekday);if(day<1||day>6||!Number.isFinite(day))return;if(!tourMap.has(normalized))tourMap.set(normalized,{tour,days:new Map()});tourMap.get(normalized).days.set(day,r);});
+ const groups=[],missing=[];
+ tourMap.forEach(({tour,days})=>{
   const byRate=new Map();
-  Object.entries(days).forEach(([dayStr,count])=>{
-   const day=Number(dayStr),rate=rates.find(r=>String(r.tour_number||'').trim().toUpperCase()===String(tour).trim().toUpperCase()&&Number(r.weekday)===day);
-   if(!rate){missing.push(tour+' – '+names[day]);return;}
-   const price=Number(rate.daily_rate),key=subId+'|'+month+'|'+tour+'|'+price.toFixed(2);
+  for(let date=new Date(monthStart);date<=lastDate;date.setUTCDate(date.getUTCDate()+1)){
+   const iso=date.toISOString().slice(0,10);if(!isChargeableDate(iso))continue;
+   const day=date.getUTCDay(),rate=days.get(day);if(!rate)continue;
+   const price=Number(rate.daily_rate),key=subId+'|'+month+'|'+tour.toUpperCase()+'|'+price.toFixed(2);
    if(!byRate.has(key))byRate.set(key,{key,tour,rate:price,days:[],count:0,labels:[]});
-   const g=byRate.get(key);g.days.push(day);g.count+=count;g.labels.push(names[day]);
-  });
+   const g=byRate.get(key);g.count++;if(!g.days.includes(day)){g.days.push(day);g.labels.push(names[day]);}
+  }
   byRate.forEach(g=>{g.amount=Math.round(g.count*g.rate*100)/100;groups.push(g);});
  });
+ groups.sort((a,b)=>a.tour.localeCompare(b.tour,undefined,{numeric:true})||a.rate-b.rate);
  const dieselInputs=[...document.querySelectorAll('[data-group-diesel]')],dieselValues={};
  dieselInputs.forEach(el=>{dieselValues[el.dataset.groupDiesel]=Number(el.value||0);});
  groups.forEach(g=>g.diesel=Number.isFinite(dieselValues[g.key])?dieselValues[g.key]:0);
@@ -191,7 +190,7 @@ function buildTourInvoicePreview(){
  if((specialDescription&&!specialAmount)||(!specialDescription&&specialAmount))throw Error('Bitte Beschreibung und Betrag der Sonderzahlung gemeinsam ausfüllen.');
  if(specialAmount<0||!Number.isFinite(specialAmount))throw Error('Bitte den Betrag der Sonderzahlung prüfen.');
  const baseTours=Math.round(groups.reduce((sum,x)=>sum+x.amount,0)*100)/100,diesel=Math.round(groups.reduce((sum,x)=>sum+x.diesel,0)*100)/100,other=Number($('subDeductions').value||0),base=Math.round((baseTours+specialAmount+diesel)*100)/100,discount=Math.round(base*0.08*100)/100,taxable=Math.round((base-discount-other)*100)/100,vat=Math.round(taxable*0.19*100)/100,gross=Math.round((taxable+vat)*100)/100;
- return {month,sub,rows:groups,groups,missing,baseTours,specialDescription,specialAmount,diesel,other,base,discount,taxable,vat,gross,cutoff,shiftCount:shiftsInMonth.length};
+ return {month,sub,rows:groups,groups,missing,baseTours,specialDescription,specialAmount,diesel,other,base,discount,taxable,vat,gross,cutoff,shiftCount:0};
 }
 function renderTourInvoicePreview(){
  const p=buildTourInvoicePreview(),el=$('subInvoicePreview'),dieselEl=$('subDieselGroups');if(!p){el.classList.add('hidden');return;}
