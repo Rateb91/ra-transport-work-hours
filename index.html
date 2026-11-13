@@ -175,7 +175,7 @@ function buildTourInvoicePreview(){
   Object.entries(days).forEach(([dayStr,count])=>{
    const day=Number(dayStr),rate=rates.find(r=>r.tour_number===tour&&Number(r.weekday)===day);
    if(!rate){missing.push(tour+' – '+names[day]);return;}
-   const price=Number(rate.daily_rate),key=tour+'|'+price.toFixed(2);
+   const price=Number(rate.daily_rate),key=subId+'|'+month+'|'+tour+'|'+price.toFixed(2);
    if(!byRate.has(key))byRate.set(key,{key,tour,rate:price,days:[],count:0,labels:[]});
    const g=byRate.get(key);g.days.push(day);g.count+=count;g.labels.push(names[day]);
   });
