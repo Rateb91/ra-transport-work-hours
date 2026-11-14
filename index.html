@@ -223,16 +223,12 @@ $('subInvoicePreview').addEventListener('click',async e=>{
    const id=save.dataset.saveSubAdjustment,item=subcontractorMonthlyAdjustments.find(x=>x.id===id);if(!item)return;
    const row=save.closest('[data-adjustment-row]'),description=row.querySelector('[data-adjustment-description]').value.trim(),amount=Number(row.querySelector('[data-adjustment-amount]').value);
    if(!description||!Number.isFinite(amount)||amount<=0)throw Error('Bitte Beschreibung und Betrag größer 0 eingeben.');
-   const previous={...item},updated={...item,description,amount};
-   subcontractorMonthlyAdjustments=subcontractorMonthlyAdjustments.map(x=>x.id===id?updated:x);
-   invalidateSubInvoicePreview();renderTourInvoicePreview();notice('Änderung wird gespeichert …');
-   try{
-    await run(db.from('subcontractor_monthly_adjustments').update({description,amount}).eq('id',id));
-    notice('Abzug wurde in der Datenbank aktualisiert.');
-   }catch(dbError){
-    subcontractorMonthlyAdjustments=subcontractorMonthlyAdjustments.map(x=>x.id===id?previous:x);
-    renderTourInvoicePreview();throw dbError;
-   }
+   notice('Änderung wird gespeichert …');
+   const saved=await run(db.from('subcontractor_monthly_adjustments').update({description,amount}).eq('id',id).eq('user_id',user.id).select('*').maybeSingle());
+   if(!saved)throw Error('Der Abzug wurde nicht aktualisiert. Keine passende Zeile gefunden oder keine Schreibberechtigung (RLS).');
+   subcontractorMonthlyAdjustments=subcontractorMonthlyAdjustments.map(x=>x.id===id?saved:x);
+   invalidateSubInvoicePreview();renderTourInvoicePreview();
+   notice('Abzug wurde dauerhaft in der Datenbank gespeichert.');
   }else if(del){const id=del.dataset.deleteSubAdjustment,item=subcontractorMonthlyAdjustments.find(x=>x.id===id);if(!item)return;
    if(!confirm('Diesen Abzug für '+$('subBillingMonth').value+' wirklich löschen?\\n'+item.description+' – '+eur(Number(item.amount))))return;
    await run(db.from('subcontractor_monthly_adjustments').delete().eq('id',id));subcontractorMonthlyAdjustments=subcontractorMonthlyAdjustments.filter(x=>x.id!==id);invalidateSubInvoicePreview();renderTourInvoicePreview();notice('Der Abzug wurde gelöscht.');
