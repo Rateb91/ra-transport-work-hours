@@ -188,7 +188,15 @@ function buildTourInvoicePreview(){
  groups.sort((a,b)=>a.tour.localeCompare(b.tour,undefined,{numeric:true})||a.rate-b.rate);
  const dieselInputs=[...document.querySelectorAll('[data-group-diesel]')],dieselValues={};
  dieselInputs.forEach(el=>{dieselValues[el.dataset.groupDiesel]=Number(el.value||0);});
- groups.forEach(g=>{const saved=subcontractorMonthlyDiesel.find(x=>x.subcontractor_id===subId&&String(x.billing_month).slice(0,7)===month&&x.group_key===g.key),hasInput=Object.prototype.hasOwnProperty.call(dieselValues,g.key);g.diesel=hasInput?dieselValues[g.key]:Number(saved?.diesel_amount||0);g.dieselSaved=!!saved;});
+ const legacyDieselUsed=new Set();
+ groups.forEach(g=>{
+  const monthRows=subcontractorMonthlyDiesel.filter(x=>x.subcontractor_id===subId&&String(x.billing_month).slice(0,7)===month);
+  let saved=monthRows.find(x=>x.group_key===g.key);
+  // Backward compatibility: older diesel rows used tour + daily price as their group key.
+  if(!saved){const legacyKey=subId+'|'+month+'|'+g.tour.toUpperCase()+'|'+g.rate.toFixed(2);const legacy=monthRows.find(x=>x.group_key===legacyKey&&!legacyDieselUsed.has(x.id));if(legacy){saved=legacy;legacyDieselUsed.add(legacy.id);}}
+  const hasInput=Object.prototype.hasOwnProperty.call(dieselValues,g.key);
+  g.diesel=hasInput?dieselValues[g.key]:Number(saved?.diesel_amount||0);g.dieselSaved=!!saved;
+ });
  const adjustments=subcontractorMonthlyAdjustments.filter(x=>x.subcontractor_id===subId&&String(x.billing_month).slice(0,7)===month),specialItems=adjustments.filter(x=>x.adjustment_type==='special'),deductionItems=adjustments.filter(x=>x.adjustment_type==='deduction');
  const specialDescription=specialItems.map(x=>x.description).join('; '),specialAmount=Math.round(specialItems.reduce((s,x)=>s+Number(x.amount||0),0)*100)/100;
  const otherDescription=deductionItems.map(x=>x.description).join('; '),other=Math.round(deductionItems.reduce((s,x)=>s+Number(x.amount||0),0)*100)/100;
