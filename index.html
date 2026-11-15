@@ -158,7 +158,7 @@ function renderSelfBillProfile(){
  Object.entries(map).forEach(([k,v])=>$(k).value=p?.[v]??(k==='selfBillTerms'?'14':''));
  const invs=subInvoices.filter(x=>x.subcontractor_id===id).sort((a,b)=>String(b.billing_month).localeCompare(String(a.billing_month)));
  $('selfBillInvoice').innerHTML='<option value="">Monatsabrechnung auswählen</option>'+invs.map(x=>'<option value="'+x.id+'">'+String(x.billing_month).slice(0,7)+' – Netto '+eur(x.net_amount)+'</option>').join('');
- $('selfBillDate').value=today();$('selfBillMessage').textContent=p?'Nächste Rechnungsnummer: '+p.next_invoice_number:'Firmendaten und erste Rechnungsnummer noch nicht gespeichert.';
+ if(!$('selfBillDate').value)$('selfBillDate').value=today();$('selfBillMessage').textContent=p?'Nächste Rechnungsnummer: '+p.next_invoice_number:'Firmendaten und erste Rechnungsnummer noch nicht gespeichert.';
 }
 async function saveSelfBillProfile(){
  const id=$('selfBillCompany').value;if(!id)throw Error('Bitte Firma auswählen.');
@@ -177,8 +177,8 @@ function openSelfBillPdf(doc){
  const lastDay=new Date(Number(month[0]),Number(month[1]),0).getDate();
  const startDate='01.'+month[1]+'.'+month[0],endDate=String(lastDay).padStart(2,'0')+'.'+month[1]+'.'+month[0];
  const fmt=n=>Number(n).toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';
- const dateText=new Date(doc.invoice_date+'T12:00:00').toLocaleDateString('de-DE');
- const terms=Number(p.payment_terms_days||14),due=new Date(doc.invoice_date+'T12:00:00');due.setDate(due.getDate()+terms);
+ const dateText=String(doc.invoice_date||'').slice(8,10)+'.'+String(doc.invoice_date||'').slice(5,7)+'.'+String(doc.invoice_date||'').slice(0,4);
+ const terms=Number(p.payment_terms_days||14),dateParts=String(doc.invoice_date||'').split('-').map(Number),due=new Date(dateParts[0],dateParts[1]-1,dateParts[2]);due.setDate(due.getDate()+terms);
  const vat=Number(doc.vat_amount),gross=Number(doc.net_amount)+vat;
  const toursText=tourNumbers.length?tourNumbers.join(', '):'Transportleistungen';
  const w=window.open('','_blank','width=900,height=1000');if(!w)throw Error('Bitte Pop-ups erlauben.');
@@ -225,6 +225,7 @@ ${esc(p.country||'Deutschland')}${p.phone?'\nTel: '+esc(p.phone):''}${p.email?'\
  w.document.open();w.document.write(html);w.document.close();w.focus();setTimeout(()=>w.print(),500);
 }
 function previewSelfBill(){
+ const selectedDate=$('selfBillDate').value||today();
  const inv=subInvoices.find(x=>x.id===$('selfBillInvoice').value);
  if(!inv)throw Error('Bitte zuerst eine gespeicherte Monatsabrechnung auswählen.');
  const saved=selfBillingDocs.find(x=>x.subcontractor_invoice_id===inv.id);
@@ -234,7 +235,7 @@ function previewSelfBill(){
  if(!p.next_invoice_number||!nextSelfBillNumber(p.next_invoice_number))throw Error('Bitte eine gültige Rechnungsnummer eingeben, z. B. 014 oder 2026-014.');
  const net=Math.round(Number(inv.net_amount)*100)/100;
  const vat=Math.round(net*0.19*100)/100;
- openSelfBillPdf({subcontractor_id:inv.subcontractor_id,subcontractor_invoice_id:inv.id,billing_month:inv.billing_month,invoice_date:$('selfBillDate').value||today(),invoice_number:p.next_invoice_number,net_amount:net,vat_amount:vat,gross_amount:Math.round((net+vat)*100)/100,issuer_snapshot:p});
+ openSelfBillPdf({subcontractor_id:inv.subcontractor_id,subcontractor_invoice_id:inv.id,billing_month:inv.billing_month,invoice_date:selectedDate,invoice_number:p.next_invoice_number,net_amount:net,vat_amount:vat,gross_amount:Math.round((net+vat)*100)/100,issuer_snapshot:p});
 }
 async function createSelfBill(){
  const inv=subInvoices.find(x=>x.id===$('selfBillInvoice').value);if(!inv)throw Error('Bitte gespeicherte Monatsabrechnung auswählen.');
