@@ -151,7 +151,7 @@ function renderFinanzen(){
 }
 
 
-function nextSelfBillNumber(n){const m=String(n||'').trim().match(/^(.*?)(\\d+)$/);return m?m[1]+String(Number(m[2])+1).padStart(m[2].length,'0'):'';}
+function nextSelfBillNumber(n){const m=String(n||'').trim().match(/^(.*?)(\d+)$/);return m?m[1]+String(Number(m[2])+1).padStart(m[2].length,'0'):'';}
 function renderSelfBillProfile(){
  const id=$('selfBillCompany').value,p=invoiceProfiles.find(x=>x.subcontractor_id===id);
  const map={selfBillNumber:'next_invoice_number',selfBillName:'issuer_name',selfBillStreet:'street',selfBillPostal:'postal_code',selfBillCity:'city',selfBillTax:'tax_number',selfBillVatId:'vat_id',selfBillPhone:'phone',selfBillEmail:'email',selfBillBank:'bank_name',selfBillIban:'iban',selfBillBic:'bic',selfBillTerms:'payment_terms_days'};
