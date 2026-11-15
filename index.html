@@ -182,7 +182,8 @@ async function createSelfBill(){
  const id=await run(db.rpc('create_subcontractor_self_billing_document',{p_invoice_id:inv.id,p_invoice_number:number,p_next_invoice_number:next,p_invoice_date:$('selfBillDate').value||today()}));
  const doc=await run(db.from('subcontractor_self_billing_documents').select('*').eq('id',id).single());selfBillingDocs.push(doc);p.next_invoice_number=next;renderSelfBillProfile();openSelfBillPdf(doc);notice('Gutschrift erstellt. Im Druckfenster „Als PDF speichern“ auswählen.');
 }
-\nfunction isSubMonthBilled(subId,month){return subInvoices.some(x=>x.subcontractor_id===subId&&String(x.billing_month).slice(0,7)===month);}
+
+function isSubMonthBilled(subId,month){return subInvoices.some(x=>x.subcontractor_id===subId&&String(x.billing_month).slice(0,7)===month);}
 function updateSubMonthLockUI(){const subId=$('subInvoiceCompany').value,month=$('subBillingMonth').value,locked=!!subId&&!!month&&isSubMonthBilled(subId,month);['confirmSubDiesel','confirmSubDeduction','confirmSubSpecial','createSubInvoice'].forEach(id=>{const el=$(id);if(el)el.disabled=locked;});['subDeductionDescription','subDeductions','subSpecialDescription','subSpecialAmount'].forEach(id=>{const el=$(id);if(el)el.disabled=locked;});const manager=$('subAdjustmentsManager');if(manager){const p=manager.querySelector('p');if(p)p.textContent=locked?'Dieser Monat ist bereits abgerechnet. Positionen sind gesperrt; Korrekturen müssen separat dokumentiert werden.':'Einzelne Positionen können hier geändert oder entfernt werden. Änderungen wirken sich auf die nächste Vorschau aus.';}}
 function renderSubAdjustments(){
  const subId=$('subInvoiceCompany').value,month=$('subBillingMonth').value,locked=!!subId&&!!month&&isSubMonthBilled(subId,month);
