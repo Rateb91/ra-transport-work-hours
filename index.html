@@ -229,7 +229,7 @@ function previewSelfBill(){
  const inv=subInvoices.find(x=>x.id===$('selfBillInvoice').value);
  if(!inv)throw Error('Bitte zuerst eine gespeicherte Monatsabrechnung auswählen.');
  const saved=selfBillingDocs.find(x=>x.subcontractor_invoice_id===inv.id);
- if(saved){openSelfBillPdf(saved);return;}
+ if(saved){openSelfBillPdf({...saved,invoice_date:selectedDate});return;}
  const p=invoiceProfiles.find(x=>x.subcontractor_id===inv.subcontractor_id);
  if(!p)throw Error('Bitte zuerst Firmendaten und die erste Rechnungsnummer speichern.');
  if(!p.next_invoice_number||!nextSelfBillNumber(p.next_invoice_number))throw Error('Bitte eine gültige Rechnungsnummer eingeben, z. B. 014 oder 2026-014.');
