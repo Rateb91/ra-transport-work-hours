@@ -184,25 +184,34 @@ function openSelfBillPdf(doc){
  const w=window.open('','_blank','width=900,height=1000');if(!w)throw Error('Bitte Pop-ups erlauben.');
  const html=`<!doctype html><html lang="de"><head><meta charset="utf-8"><title>${esc(company.company_name)}_${esc(doc.invoice_number)}</title>
  <style>
- @page{size:A4;margin:18mm 19mm 19mm}
- *{box-sizing:border-box}body{font-family:Arial,Helvetica,sans-serif;font-size:11.5pt;line-height:1.34;color:#111;margin:0}
- .page{min-height:259mm;position:relative;padding-bottom:34mm}
- .addresses{display:grid;grid-template-columns:1fr 1fr;min-height:65mm;align-items:start}
- .recipient{padding-top:4mm}.issuer{text-align:right;white-space:pre-line}
- .meta{text-align:right;margin-top:8mm;line-height:1.6}
- h1{font-size:19pt;font-weight:400;margin:7mm 0 7mm}
- .intro{margin:0 0 9mm}.intro p{margin:0 0 3mm}
- table{width:100%;border-collapse:collapse;table-layout:fixed;margin:0 0 8mm}
- th{font-weight:400;text-align:left;padding:2mm 1mm;border-bottom:1px solid #555}
- td{padding:2mm 1mm;vertical-align:top}
- .period{width:25%}.tour{width:53%}.amount{width:22%;text-align:right}
- .date-end{padding-top:0}.dash{padding-top:0}
- .totals{width:58%;margin-left:auto;margin-top:5mm;margin-bottom:12mm}
- .totals td{padding:1.3mm 0}.totals .value{text-align:right;white-space:nowrap}
- .payment{margin:0 0 8mm}.closing{margin:0 0 3mm}.signature{margin:0}
- .footer{position:absolute;left:0;right:0;bottom:0;display:grid;grid-template-columns:1fr 1fr 1fr;gap:4mm;font-size:9pt;line-height:1.35}
- .footer div{white-space:pre-line}.footer .bank{text-align:center}.footer .tax{text-align:right}
- @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+ @page{size:A4;margin:0}
+ *{box-sizing:border-box}
+ html,body{margin:0;padding:0;color:#111;font-family:Arial,Helvetica,sans-serif}
+ body{font-size:11pt;line-height:1.32}
+ .page{width:210mm;height:297mm;position:relative;padding:0 20mm;overflow:hidden}
+ .addresses{display:contents}
+ .recipient{position:absolute;left:23mm;top:39mm;line-height:1.34}
+ .issuer{position:absolute;right:20mm;top:67mm;width:75mm;text-align:right;white-space:pre-line;line-height:1.34}
+ .meta{margin-top:8mm;line-height:1.55}
+ h1{position:absolute;left:27mm;top:112mm;margin:0;font-size:19pt;font-weight:400;line-height:1.2}
+ .intro{position:absolute;left:27mm;right:20mm;top:129mm}
+ .intro p{margin:0 0 5mm}
+ .table-wrap{position:absolute;left:25mm;right:21mm;top:157mm}
+ table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:10.5pt}
+ .services th{background:#d6d6d6;font-weight:400;text-align:left;padding:1.5mm 2mm;white-space:nowrap}
+ .services td{padding:1mm 2mm;vertical-align:top}
+ .period{width:21%}.tour-label{width:12%}.tour-list{width:45%}.amount{width:22%;text-align:right;white-space:nowrap}
+ .services tbody tr:last-child td{border-bottom:1px solid #bbb}
+ .totals{margin-top:7mm}
+ .totals td{padding:1.4mm 2mm;border-top:1px solid #c7c7c7}
+ .totals .value{text-align:right;white-space:nowrap}
+ .totals tr:last-child td{background:#d6d6d6;font-weight:bold;border:0}
+ .payment{position:absolute;left:27mm;right:20mm;top:213mm;margin:0}
+ .closing{position:absolute;left:27mm;top:237mm;margin:0}
+ .signature{position:absolute;left:28mm;top:243mm;margin:0}
+ .footer{position:absolute;left:23mm;right:20mm;top:258mm;display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:5mm;font-size:8.5pt;line-height:1.15;color:#888;font-weight:bold}
+ .footer div{white-space:pre-line}.footer .bank,.footer .tax{text-align:left}
+ @media print{html,body{width:210mm;height:297mm}.page{break-after:avoid;page-break-after:avoid;-webkit-print-color-adjust:exact;print-color-adjust:exact}}
  </style></head><body><main class="page">
  <div class="addresses">
   <div class="recipient">Herrn<br>Rateb Abdeldayem<br>An Der Kreuzkirche 17<br>44623 Herne</div>
@@ -215,9 +224,9 @@ ${esc(p.country||'Deutschland')}${p.phone?'\nTel: '+esc(p.phone):''}${p.email?'\
  </div>
  <h1>Gutschrift ${esc(doc.invoice_number)}</h1>
  <div class="intro"><p>Sehr geehrter Herr Abdeldayem,</p><p>Vielen Dank für Ihren Auftrag. Vereinbarungsgemäß erstellen wir Ihnen hiermit folgende Gutschrift:</p></div>
- <table><thead><tr><th class="period">Zeitraum</th><th class="tour">Tour ${esc(toursText)}</th><th class="amount">Gesamtpreis</th></tr></thead>
- <tbody><tr><td>${startDate}</td><td>Touren + Sonderfahrten</td><td class="amount">${fmt(doc.net_amount)}</td></tr><tr><td class="date-end">${endDate}</td><td class="dash">-</td><td></td></tr></tbody></table>
- <table class="totals"><tbody><tr><td>Nettopreis</td><td class="value">${fmt(doc.net_amount)}</td></tr><tr><td>Zzgl. 19% Umsatzsteuer</td><td class="value">${fmt(vat)}</td></tr><tr><td>Gutschriftsbetrag</td><td class="value">${fmt(gross)}</td></tr></tbody></table>
+ <div class="table-wrap"><table class="services"><thead><tr><th class="period">Zeitraum</th><th class="tour-label">Tour</th><th class="tour-list">\${esc(tourNumbers.join(' '))}</th><th class="amount">Gesamtpreis</th></tr></thead>
+ <tbody><tr><td>\${startDate}</td><td></td><td>Sanacorp Touren+ Sonderfahrten</td><td class="amount">\${fmt(doc.net_amount)}</td></tr><tr><td>-<br>\${endDate}</td><td>-</td><td></td><td></td></tr></tbody></table>
+ <table class="totals"><tbody><tr><td>Nettopreis</td><td class="value">${fmt(doc.net_amount)}</td></tr><tr><td>Zzgl. 19% Umsatzsteuer</td><td class="value">${fmt(vat)}</td></tr><tr><td>Gutschriftsbetrag</td><td class="value">${fmt(gross)}</td></tr></tbody></table></div>
  <p class="payment">Bitte überweisen Sie den Gutschriftsbetrag innerhalb von ${terms} Tagen auf unser unten genanntes Konto.<br>Für weitere Fragen stehen wir Ihnen sehr gerne zur Verfügung.</p>
  <p class="closing">Mit freundlichen Grüßen</p><p class="signature">${esc(p.issuer_name||company.company_name)}</p>
  <div class="footer"><div>${esc(p.issuer_name||company.company_name)}<br>${esc(p.street||'')}<br>${esc([p.postal_code,p.city].filter(Boolean).join(' '))}${p.phone?'<br>Tel: '+esc(p.phone):''}</div><div class="bank">Bankverbindung:<br>${esc(p.bank_name||'')}<br>${esc(p.iban||'')}<br>${esc(p.bic||'')}</div><div class="tax">${p.city?'Finanzamt '+esc(p.city):''}<br>Steuernummer: ${esc(p.tax_number||'')}${p.vat_id?'<br>USt-ID: '+esc(p.vat_id):''}</div></div>
