@@ -224,8 +224,8 @@ ${esc(p.country||'Deutschland')}${p.phone?'\nTel: '+esc(p.phone):''}${p.email?'\
  </div>
  <h1>Gutschrift ${esc(doc.invoice_number)}</h1>
  <div class="intro"><p>Sehr geehrter Herr Abdeldayem,</p><p>Vielen Dank für Ihren Auftrag. Vereinbarungsgemäß erstellen wir Ihnen hiermit folgende Gutschrift:</p></div>
- <div class="table-wrap"><table class="services"><thead><tr><th class="period">Zeitraum</th><th class="tour-label">Tour</th><th class="tour-list">\${esc(tourNumbers.join(' '))}</th><th class="amount">Gesamtpreis</th></tr></thead>
- <tbody><tr><td>\${startDate}</td><td></td><td>Sanacorp Touren+ Sonderfahrten</td><td class="amount">\${fmt(doc.net_amount)}</td></tr><tr><td>-<br>\${endDate}</td><td>-</td><td></td><td></td></tr></tbody></table>
+ <div class="table-wrap"><table class="services"><thead><tr><th class="period">Zeitraum</th><th class="tour-label">Tour</th><th class="tour-list">${esc(tourNumbers.join(' '))}</th><th class="amount">Gesamtpreis</th></tr></thead>
+ <tbody><tr><td>${startDate}</td><td></td><td>Sanacorp Touren+ Sonderfahrten</td><td class="amount">${fmt(doc.net_amount)}</td></tr><tr><td>-<br>${endDate}</td><td>-</td><td></td><td></td></tr></tbody></table>
  <table class="totals"><tbody><tr><td>Nettopreis</td><td class="value">${fmt(doc.net_amount)}</td></tr><tr><td>Zzgl. 19% Umsatzsteuer</td><td class="value">${fmt(vat)}</td></tr><tr><td>Gutschriftsbetrag</td><td class="value">${fmt(gross)}</td></tr></tbody></table></div>
  <p class="payment">Bitte überweisen Sie den Gutschriftsbetrag innerhalb von ${terms} Tagen auf unser unten genanntes Konto.<br>Für weitere Fragen stehen wir Ihnen sehr gerne zur Verfügung.</p>
  <p class="closing">Mit freundlichen Grüßen</p><p class="signature">${esc(p.issuer_name||company.company_name)}</p>
