@@ -168,12 +168,61 @@ async function saveSelfBillProfile(){
  invoiceProfiles=invoiceProfiles.filter(x=>x.subcontractor_id!==id).concat(saved);renderSelfBillProfile();notice('Firmendaten gespeichert.');
 }
 function openSelfBillPdf(doc){
- const c=subcontractors.find(x=>x.id===doc.subcontractor_id),p=doc.issuer_snapshot||{};if(!c)throw Error('Firma nicht gefunden.');
- const mm=String(doc.billing_month).slice(0,7).split('-'),end=new Date(Number(mm[0]),Number(mm[1]),0).getDate(),period='01.'+mm[1]+'.'+mm[0]+' – '+String(end).padStart(2,'0')+'.'+mm[1]+'.'+mm[0],fmt=n=>Number(n).toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';
+ const company=subcontractors.find(x=>x.id===doc.subcontractor_id),p=doc.issuer_snapshot||{};
+ if(!company)throw Error('Firma nicht gefunden.');
+ const invoice=subInvoices.find(x=>x.id===doc.subcontractor_invoice_id);
+ const lines=subInvoiceLines.filter(x=>x.invoice_id===doc.subcontractor_invoice_id);
+ const tourNumbers=[...new Set(lines.map(x=>String(x.tour_number||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
+ const month=String(doc.billing_month).slice(0,7).split('-');
+ const lastDay=new Date(Number(month[0]),Number(month[1]),0).getDate();
+ const startDate='01.'+month[1]+'.'+month[0],endDate=String(lastDay).padStart(2,'0')+'.'+month[1]+'.'+month[0];
+ const fmt=n=>Number(n).toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';
+ const dateText=new Date(doc.invoice_date+'T12:00:00').toLocaleDateString('de-DE');
  const terms=Number(p.payment_terms_days||14),due=new Date(doc.invoice_date+'T12:00:00');due.setDate(due.getDate()+terms);
- const w=window.open('','_blank','width=900,height=800');if(!w)throw Error('Bitte Pop-ups erlauben.');
- const html='<!doctype html><html lang="de"><head><meta charset="utf-8"><title>'+esc(c.company_name)+'_'+esc(doc.invoice_number)+'</title><style>@page{size:A4;margin:22mm}body{font:12px Arial;color:#222}.top{display:flex;justify-content:space-between;min-height:175px}.right{text-align:right}.meta{margin-top:24px}h1{font-size:27px;font-weight:500;margin:40px 0 26px}table{width:100%;border-collapse:collapse;margin:20px 0 35px}th{background:#e5e5e5;text-align:left}td,th{padding:8px;border-bottom:1px solid #ccc}.amount{text-align:right}.totals{width:60%;margin-left:auto}.totals td{border:0}.grand{background:#e5e5e5;font-weight:bold}.footer{position:fixed;bottom:0;left:0;right:0;display:flex;justify-content:space-between;font-size:9px;color:#555;white-space:pre-line}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body><div class="top"><div>Herrn<br><b>RA Transport</b><br>An der Kreuzkirche 17<br>44623 Herne<br>Deutschland</div><div class="right"><b>'+esc(p.issuer_name)+'</b><br>'+esc(p.street)+'<br>'+esc(p.postal_code)+' '+esc(p.city)+'<br>Deutschland<div class="meta">Datum: '+new Date(doc.invoice_date+'T12:00:00').toLocaleDateString('de-DE')+'<br>Rechnungsnummer: '+esc(doc.invoice_number)+'</div></div></div><h1>Gutschrift '+esc(doc.invoice_number)+'</h1><p>Vereinbarungsgemäß erstellen wir diese Gutschrift für die im genannten Zeitraum erbrachten Transportleistungen.</p><table><tr><th>Zeitraum</th><th>Leistung</th><th class="amount">Gesamtpreis</th></tr><tr><td>'+period+'</td><td>Transportleistungen</td><td class="amount">'+fmt(doc.net_amount)+'</td></tr></table><table class="totals"><tr><td>Nettopreis</td><td class="amount">'+fmt(doc.net_amount)+'</td></tr><tr><td>Zzgl. 19 % Umsatzsteuer</td><td class="amount">'+fmt(doc.vat_amount)+'</td></tr><tr class="grand"><td>Rechnungsbetrag</td><td class="amount">'+fmt(doc.gross_amount)+'</td></tr></table><p>Zahlbar innerhalb von '+terms+' Tagen bis zum '+due.toLocaleDateString('de-DE')+'.</p><p>Mit freundlichen Grüßen<br>'+esc(p.issuer_name)+'</p><div class="footer"><div>'+esc(p.issuer_name)+'<br>'+esc(p.street)+'<br>'+esc(p.postal_code)+' '+esc(p.city)+'</div><div>'+esc(p.bank_name)+'<br>IBAN: '+esc(p.iban)+'<br>BIC: '+esc(p.bic)+'</div><div>Steuernummer: '+esc(p.tax_number)+'<br>USt-ID: '+esc(p.vat_id)+'</div></div><script>window.onload=()=>window.print();<\\/script></body></html>';
- w.document.open();w.document.write(html);w.document.close();w.focus();
+ const vat=Number(doc.vat_amount),gross=Number(doc.net_amount)+vat;
+ const toursText=tourNumbers.length?tourNumbers.join(', '):'Transportleistungen';
+ const w=window.open('','_blank','width=900,height=1000');if(!w)throw Error('Bitte Pop-ups erlauben.');
+ const html=`<!doctype html><html lang="de"><head><meta charset="utf-8"><title>${esc(company.company_name)}_${esc(doc.invoice_number)}</title>
+ <style>
+ @page{size:A4;margin:18mm 19mm 19mm}
+ *{box-sizing:border-box}body{font-family:Arial,Helvetica,sans-serif;font-size:11.5pt;line-height:1.34;color:#111;margin:0}
+ .page{min-height:259mm;position:relative;padding-bottom:34mm}
+ .addresses{display:grid;grid-template-columns:1fr 1fr;min-height:65mm;align-items:start}
+ .recipient{padding-top:4mm}.issuer{text-align:right;white-space:pre-line}
+ .meta{text-align:right;margin-top:8mm;line-height:1.6}
+ h1{font-size:19pt;font-weight:400;margin:7mm 0 7mm}
+ .intro{margin:0 0 9mm}.intro p{margin:0 0 3mm}
+ table{width:100%;border-collapse:collapse;table-layout:fixed;margin:0 0 8mm}
+ th{font-weight:400;text-align:left;padding:2mm 1mm;border-bottom:1px solid #555}
+ td{padding:2mm 1mm;vertical-align:top}
+ .period{width:25%}.tour{width:53%}.amount{width:22%;text-align:right}
+ .date-end{padding-top:0}.dash{padding-top:0}
+ .totals{width:58%;margin-left:auto;margin-top:5mm;margin-bottom:12mm}
+ .totals td{padding:1.3mm 0}.totals .value{text-align:right;white-space:nowrap}
+ .payment{margin:0 0 8mm}.closing{margin:0 0 3mm}.signature{margin:0}
+ .footer{position:absolute;left:0;right:0;bottom:0;display:grid;grid-template-columns:1fr 1fr 1fr;gap:4mm;font-size:9pt;line-height:1.35}
+ .footer div{white-space:pre-line}.footer .bank{text-align:center}.footer .tax{text-align:right}
+ @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+ </style></head><body><main class="page">
+ <div class="addresses">
+  <div class="recipient">Herrn<br>Rateb Abdeldayem<br>An Der Kreuzkirche 17<br>44623 Herne</div>
+  <div class="issuer"><b>${esc(p.issuer_name||company.company_name)}</b>
+${esc(p.street||'')}
+${esc([p.postal_code,p.city].filter(Boolean).join(' '))}
+${esc(p.country||'Deutschland')}${p.phone?'\nTel: '+esc(p.phone):''}${p.email?'\n'+esc(p.email):''}
+   <div class="meta">Datum: ${dateText}<br>Rechnungsnummer: ${esc(doc.invoice_number)}</div>
+  </div>
+ </div>
+ <h1>Gutschrift ${esc(doc.invoice_number)}</h1>
+ <div class="intro"><p>Sehr geehrter Herr Abdeldayem,</p><p>Vielen Dank für Ihren Auftrag. Vereinbarungsgemäß erstellen wir Ihnen hiermit folgende Gutschrift:</p></div>
+ <table><thead><tr><th class="period">Zeitraum</th><th class="tour">Tour ${esc(toursText)}</th><th class="amount">Gesamtpreis</th></tr></thead>
+ <tbody><tr><td>${startDate}</td><td>Touren + Sonderfahrten</td><td class="amount">${fmt(doc.net_amount)}</td></tr><tr><td class="date-end">${endDate}</td><td class="dash">-</td><td></td></tr></tbody></table>
+ <table class="totals"><tbody><tr><td>Nettopreis</td><td class="value">${fmt(doc.net_amount)}</td></tr><tr><td>Zzgl. 19% Umsatzsteuer</td><td class="value">${fmt(vat)}</td></tr><tr><td>Gutschriftsbetrag</td><td class="value">${fmt(gross)}</td></tr></tbody></table>
+ <p class="payment">Bitte überweisen Sie den Gutschriftsbetrag innerhalb von ${terms} Tagen auf unser unten genanntes Konto.<br>Für weitere Fragen stehen wir Ihnen sehr gerne zur Verfügung.</p>
+ <p class="closing">Mit freundlichen Grüßen</p><p class="signature">${esc(p.issuer_name||company.company_name)}</p>
+ <div class="footer"><div>${esc(p.issuer_name||company.company_name)}<br>${esc(p.street||'')}<br>${esc([p.postal_code,p.city].filter(Boolean).join(' '))}${p.phone?'<br>Tel: '+esc(p.phone):''}</div><div class="bank">Bankverbindung:<br>${esc(p.bank_name||'')}<br>${esc(p.iban||'')}<br>${esc(p.bic||'')}</div><div class="tax">${p.city?'Finanzamt '+esc(p.city):''}<br>Steuernummer: ${esc(p.tax_number||'')}${p.vat_id?'<br>USt-ID: '+esc(p.vat_id):''}</div></div>
+ </main></body></html>`;
+ w.document.open();w.document.write(html);w.document.close();w.focus();setTimeout(()=>w.print(),500);
 }
 async function createSelfBill(){
  const inv=subInvoices.find(x=>x.id===$('selfBillInvoice').value);if(!inv)throw Error('Bitte gespeicherte Monatsabrechnung auswählen.');
