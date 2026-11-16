@@ -520,7 +520,10 @@ function makeStundenplan(){
  const n=total>=work.length*2?work.length:Math.floor(total/2),three=total-2*n;if(n<1||three<0||three>n)throw Error('Diese Stundenzahl lässt sich nicht mit 2 oder 3 Stunden pro Arbeitstag verteilen.');
  const shuffled=work.slice();for(let i=shuffled.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[shuffled[i],shuffled[j]]=[shuffled[j],shuffled[i]];}const chosen=shuffled.slice(0,n),threeSet=new Set(chosen.slice().sort(()=>Math.random()-.5).slice(0,three).map(x=>x.date));
  const fm=Number(from.slice(0,2))*60+Number(from.slice(3,5)),tm=Number(to.slice(0,2))*60+Number(to.slice(3,5)),map={};
- chosen.forEach(d=>{const h=threeSet.has(d.date)?3:2,max=Math.min(tm,1439-h*60),min=Math.min(fm,max),steps=Math.max(0,Math.floor((max-min)/5)),start=min+Math.floor(Math.random()*(steps+1))*5;map[d.day]={begin:stundenplanPad(Math.floor(start/60))+':'+stundenplanPad(start%60),end:stundenplanPad(Math.floor((start+h*60)/60))+':'+stundenplanPad((start+h*60)%60),hours:h};});
+ const startHours=[];for(let h=Math.ceil(fm/60);h*60<=tm&&h<=21;h++)startHours.push(h*60);
+ if(!startHours.length)throw Error('Bitte einen Zeitbereich wählen, der mindestens eine volle Stunde enthält (z. B. 11:00 bis 14:00).');
+ const commonStart=startHours[Math.floor(Math.random()*startHours.length)];
+ chosen.forEach(d=>{const h=threeSet.has(d.date)?3:2,start=commonStart;map[d.day]={begin:stundenplanPad(Math.floor(start/60))+':00',end:stundenplanPad(Math.floor((start+h*60)/60))+':00',hours:h};});
  const monthName=new Date(year,mo-1,1).toLocaleDateString('de-DE',{month:'long',year:'numeric'}),rows=[];
  for(let d=1;d<=count;d++){const x=map[d];rows.push('<tr><td class="day">'+d+'</td><td>'+(x?x.begin:'')+'</td><td></td><td>'+(x?x.end:'')+'</td><td class="duration">'+(x?x.hours:'-')+'</td><td></td><td></td><td></td></tr>');}
  const html='<!doctype html><html lang="de"><head><meta charset="utf-8"><title>Stundenzettel '+esc(emp.name)+' – '+monthName+'</title><style>'+
