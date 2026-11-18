@@ -223,10 +223,20 @@ function openAppTab(id){
  if(id==="admin")loadAdminUsers().catch(e=>notice(e.message,true));
 }
 function permissionMarkup(prefix,perms={}){
- return ADMIN_MODULES.map(([id,label])=>{const p=perms[id]||{};return '<div class="admin-perm-item"><strong>'+esc(label)+'</strong><label><input type="checkbox" data-perm-view="'+prefix+':'+id+'" '+(p.view?'checked':'')+'> Ansehen</label><label><input type="checkbox" data-perm-edit="'+prefix+':'+id+'" '+(p.edit?'checked':'')+'> Bearbeiten</label></div>';}).join('');
+ return ADMIN_MODULES.map(([id,label])=>{const p=perms[id]||{};return '<div class="admin-perm-item"><strong>'+esc(label)+'</strong><label><input type="checkbox" data-perm-view="'+prefix+':'+id+'" '+(p.view?'checked':'')+'> Ansehen</label><label><input type="checkbox" data-perm-edit="'+prefix+':'+id+'" '+(p.edit?'checked':'')+'> Bearbeiten</label><label><input type="checkbox" data-perm-off="'+prefix+':'+id+'" '+(!p.view&&!p.edit?'checked':'')+'> Aus</label></div>';}).join('');
+}
+function bindPermissionControls(root){
+ if(root.dataset.permissionControlsBound)return;root.dataset.permissionControlsBound='1';
+ root.addEventListener('change',e=>{
+  const item=e.target.closest('[data-perm-view],[data-perm-edit],[data-perm-off]');if(!item)return;
+  const card=item.closest('.admin-perm-item');if(!card)return;
+  const view=card.querySelector('[data-perm-view]'),edit=card.querySelector('[data-perm-edit]'),off=card.querySelector('[data-perm-off]');
+  if(item===off&&off.checked){view.checked=false;edit.checked=false;}
+  else if(item.checked&&off)off.checked=false;
+ });
 }
 function collectPermissions(root,prefix){
- const out={};for(const [id] of ADMIN_MODULES){out[id]={view:!!root.querySelector('[data-perm-view="'+prefix+':'+id+'"]')?.checked,edit:!!root.querySelector('[data-perm-edit="'+prefix+':'+id+'"]')?.checked};if(out[id].edit)out[id].view=true;}return out;
+ const out={};for(const [id] of ADMIN_MODULES){const off=!!root.querySelector('[data-perm-off="'+prefix+':'+id+'"]')?.checked;let view=!off&&!!root.querySelector('[data-perm-view="'+prefix+':'+id+'"]')?.checked,edit=!off&&!!root.querySelector('[data-perm-edit="'+prefix+':'+id+'"]')?.checked;if(edit)view=true;out[id]={view,edit};}return out;
 }
 async function adminAction(body){
  const {data,error}=await db.functions.invoke('ra-admin-users',{body});
@@ -235,17 +245,17 @@ async function adminAction(body){
 async function loadAdminUsers(){
  if(!["super_admin","admin"].includes(currentRole))return;
  const data=await adminAction({action:"list"});adminUsers=data.users||[];
- $('adminUsersList').innerHTML=adminUsers.length?adminUsers.map(u=>{
+ bindPermissionControls($('adminUsersList'));$('adminUsersList').innerHTML=adminUsers.length?adminUsers.map(u=>{
  const prefix=u.user_id;
  return '<div class="admin-user-card" data-admin-user="'+esc(prefix)+'"><div class="admin-user-head"><div><strong>'+esc(u.email||"Ohne E-Mail")+'</strong><div class="muted">'+esc(u.role)+' · '+(u.is_active?'Aktiv':'Deaktiviert')+'</div></div><div class="actions"><label>Rolle <select data-user-role><option value="employee" '+(u.role==="employee"?'selected':'')+'>Mitarbeiter</option><option value="admin" '+(u.role==="admin"?'selected':'')+'>Admin</option></select></label><label><input type="checkbox" data-user-active '+(u.is_active?'checked':'')+'> Aktiv</label><button type="button" data-user-save>Speichern</button></div></div><div class="admin-perm-grid">'+permissionMarkup(prefix,u.permissions||{})+'</div></div>';
  }).join(''):'<p class="muted">Noch keine Mitarbeiterkonten angelegt.</p>';
 }
-$('adminNewPermissions').innerHTML=permissionMarkup("new",Object.fromEntries(ADMIN_MODULES.map(([id])=>[id,{view:true,edit:false}])));
+$('adminNewPermissions').innerHTML=permissionMarkup("new",Object.fromEntries(ADMIN_MODULES.map(([id])=>[id,{view:true,edit:false}])));bindPermissionControls($('adminNewPermissions'));
 $('adminCreateForm').addEventListener('submit',async e=>{
  e.preventDefault();try{
  const permissions=collectPermissions($('adminNewPermissions'),"new");
  await adminAction({action:"create",email:$('adminNewEmail').value.trim(),password:$('adminNewPassword').value,permissions});
- $('adminCreateForm').reset();$('adminNewPermissions').innerHTML=permissionMarkup("new",Object.fromEntries(ADMIN_MODULES.map(([id])=>[id,{view:true,edit:false}])));
+ $('adminCreateForm').reset();$('adminNewPermissions').innerHTML=permissionMarkup("new",Object.fromEntries(ADMIN_MODULES.map(([id])=>[id,{view:true,edit:false}])));bindPermissionControls($('adminNewPermissions'));
  await loadAdminUsers();notice("Benutzerkonto wurde erstellt.");
  }catch(x){notice(x.message,true);}
 });
