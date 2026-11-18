@@ -179,7 +179,14 @@ function canView(id){return currentRole==="super_admin"||currentPermissions?.[id
 function canEdit(id){return currentRole==="super_admin"||currentPermissions?.[id]?.edit===true;}
 function applyPermissions(){
  document.querySelectorAll('[data-tab]').forEach(b=>{const id=b.dataset.tab;b.classList.toggle('hidden',id!=="admin"&&!canView(id));});
- document.querySelectorAll('.tab').forEach(sec=>{if(sec.id!=="admin"&&!canView(sec.id))sec.classList.add('hidden');});
+ document.querySelectorAll('.tab').forEach(sec=>{
+  if(sec.id==="admin")return;
+  if(!canView(sec.id)){sec.classList.add('hidden');return;}
+  sec.classList.remove('hidden');
+  const readOnly=!canEdit(sec.id);
+  sec.querySelectorAll('form input,form select,form textarea,form button[type="submit"],form button:not([type])').forEach(el=>{el.disabled=readOnly;});
+  sec.querySelectorAll('[data-del-employee],[data-del-shift],[data-del-tour],[data-del-fleet-vehicle],[data-del-fleet-tour],[data-edit-employee-name],[data-edit-zip],[data-del-zip]').forEach(el=>{el.disabled=readOnly;});
+ });
  $('adminNav').classList.toggle('hidden',currentRole!=="super_admin"&&currentRole!=="admin");
 }
 function openAppTab(id){
