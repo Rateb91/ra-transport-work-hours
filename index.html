@@ -56,14 +56,20 @@ tr:last-child td{border-bottom:0}
 .msg{border:1px solid #d8e8de;border-radius:11px}
 @media(min-width:1100px){.dashboard-stats{grid-template-columns:repeat(4,minmax(0,1fr))}.dashboard-actions{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:650px){.top{padding:15px}.brand-mark{width:50px;height:50px;flex-basis:50px}.brand-copy h1{font-size:20px}.wrap{margin:14px auto}.panel{border-radius:14px}.dashboard-stats .card{padding:14px;min-height:100px}.dashboard-stats .total{font-size:23px}}
-@media print{#stundenplanPrintRoot{display:none}}\n</style></head>
+@media print{#stundenplanPrintRoot{display:none}}\n.admin-perm-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:9px;margin:12px 0 18px}.admin-perm-item{border:1px solid var(--line);border-radius:9px;padding:9px;background:#fafcfb}.admin-perm-item strong{display:block;margin-bottom:7px}.admin-perm-item label{display:inline-flex;align-items:center;gap:5px;margin:3px 10px 3px 0;font-size:13px}.admin-user-card{border:1px solid var(--line);border-radius:12px;padding:15px;margin:12px 0;background:white}.admin-user-head{display:flex;gap:12px;justify-content:space-between;align-items:center;flex-wrap:wrap}.admin-user-head strong{overflow-wrap:anywhere}</style></head>
 <body>
 <header class="top"><a href="#home" id="brandHome" class="brand-home" aria-label="RA Transport – Startseite"><span class="brand-mark"><svg viewBox="0 0 100 100" role="img" aria-label="RA Transport Logo"><rect x="2" y="2" width="96" height="96" rx="13" fill="#b9a779"/><g fill="#06332e"><path d="M24 7l3.2 9.5 10 .2-8 5.9 3 9.6-8.2-5.9-8 5.9 3-9.6-8-5.9 10-.2z"/><path d="M50 2l3.2 9.5 10 .2-8 5.9 3 9.6-8.2-5.9-8 5.9 3-9.6-8-5.9 10-.2z"/><path d="M76 7l3.2 9.5 10 .2-8 5.9 3 9.6-8.2-5.9-8 5.9 3-9.6-8-5.9 10-.2z"/><text x="50" y="79" text-anchor="middle" font-family="Georgia,serif" font-size="49" font-weight="bold" letter-spacing="-4">RA</text></g></svg></span><span class="brand-copy"><h1>RA Transport</h1><small>Touren- und Fahrerzeitenverwaltung</small></span></a><div id="userArea"></div></header>
 <main class="wrap">
 <div id="notice" class="msg hidden"></div>
 <section id="auth" class="panel"><h2>Anmelden</h2><form id="authForm"><div class="grid"><div><label>E-Mail-Adresse</label><input id="email" type="email" required autocomplete="username"></div><div><label>Passwort</label><input id="password" type="password" minlength="8" required autocomplete="current-password"></div></div><div class="actions"><button>Anmelden</button></div></form><p class="muted">Der Zugang ist auf das bestehende Administratorkonto beschränkt.</p></section>
 <div id="app" class="hidden">
-<div class="global-search-wrap"><input id="globalSearch" type="search" placeholder="Suchen: Fahrer, Tour, Fahrzeug, Rechnung …" autocomplete="off" aria-label="Suche in allen Bereichen"><div id="globalSearchResults" class="global-search-results hidden"></div></div><nav class="tabs"><button data-tab="dashboard">Dashboard</button><button class="secondary" data-tab="daily">Tägliche Arbeitszeit erfassen</button><button class="secondary" data-tab="tours">Tourenliste</button><button class="secondary" data-tab="employees">Fahrer</button><button class="secondary" data-tab="report">Monatsbericht</button><button class="secondary" data-tab="routeLinks">Touren &amp; Apotheken</button><button class="secondary" data-tab="blocksView">Blocks View</button><button class="secondary" data-tab="zipmend">Zipmend</button><button class="secondary" data-tab="finanzen">Finanzen</button></nav>
+<div class="global-search-wrap"><input id="globalSearch" type="search" placeholder="Suchen: Fahrer, Tour, Fahrzeug, Rechnung …" autocomplete="off" aria-label="Suche in allen Bereichen"><div id="globalSearchResults" class="global-search-results hidden"></div></div><nav class="tabs"><button data-tab="dashboard">Dashboard</button><button class="secondary" data-tab="daily">Tägliche Arbeitszeit erfassen</button><button class="secondary" data-tab="tours">Tourenliste</button><button class="secondary" data-tab="employees">Fahrer</button><button class="secondary" data-tab="report">Monatsbericht</button><button class="secondary" data-tab="routeLinks">Touren &amp; Apotheken</button><button class="secondary" data-tab="blocksView">Blocks View</button><button class="secondary" data-tab="zipmend">Zipmend</button><button class="secondary" data-tab="finanzen">Finanzen</button><button class="secondary hidden" id="adminNav" data-tab="admin">Admin</button></nav>
+<section id="admin" class="panel tab hidden">
+<div class="rowline"><div><h2>Admin – Benutzer &amp; Rechte</h2><p class="muted">Benutzerkonten, Rollen und Berechtigungen für jeden App-Bereich verwalten.</p></div><span class="badge">Super Admin</span></div>
+<div class="card"><h3>Neuen Mitarbeiterzugang erstellen</h3><form id="adminCreateForm"><div class="grid"><div><label>E-Mail-Adresse</label><input id="adminNewEmail" type="email" required></div><div><label>Startpasswort (mindestens 12 Zeichen)</label><input id="adminNewPassword" type="password" minlength="12" required autocomplete="new-password"></div></div><h4>Bereiche freigeben</h4><div id="adminNewPermissions" class="admin-perm-grid"></div><div class="actions"><button type="submit">Benutzer erstellen</button></div></form></div>
+<div class="rowline"><h3>Vorhandene Benutzer</h3><button type="button" class="secondary" id="adminRefresh">Aktualisieren</button></div>
+<div id="adminUsersList"><p class="muted">Benutzer werden geladen …</p></div>
+</section>
 <section id="dashboard" class="panel tab"><div class="rowline"><div><h2>RA Transport – Dashboard</h2><p class="muted">Unternehmensübersicht und Schnellzugriff</p></div><span class="badge" id="dashToday"></span></div>
 <div class="grid dashboard-stats">
 <div class="card"><label>Fahrer</label><div class="total" id="dashEmployees">0</div></div>
@@ -109,7 +115,7 @@ tr:last-child td{border-bottom:0}
 (async()=>{
 const SUPABASE_URL='https://mdxmozjfsoxpwyddrdpe.supabase.co';
 const SUPABASE_KEY='sb_publishable_N_S8k2J3SG9NElhjYwL_dQ_1px1jQ69';
-const $=id=>document.getElementById(id);let db,user,tours=[],employees=[],shifts=[],fleetVehicles=[],fleetTours=[],zipInvoices=[],subcontractors=[],subInvoices=[],subInvoiceLines=[],subcontractorTourRates=[],subcontractorTourDayRates=[],priceHistory=[],subcontractorMonthlyDiesel=[],subcontractorMonthlySpecial=[],subcontractorMonthlyAdjustments=[],activityLogs=[],invoiceProfiles=[],selfBillingDocs=[],selectedFleetVehicle="";
+const $=id=>document.getElementById(id);let db,user,currentRole="employee",currentPermissions={},adminUsers=[],tours=[],employees=[],shifts=[],fleetVehicles=[],fleetTours=[],zipInvoices=[],subcontractors=[],subInvoices=[],subInvoiceLines=[],subcontractorTourRates=[],subcontractorTourDayRates=[],priceHistory=[],subcontractorMonthlyDiesel=[],subcontractorMonthlySpecial=[],subcontractorMonthlyAdjustments=[],activityLogs=[],invoiceProfiles=[],selfBillingDocs=[],selectedFleetVehicle="";
 function notice(msg,bad=false){$('notice').textContent=msg;$('notice').className='msg'+(bad?' error':'');}
 function clearNotice(){$('notice').className='msg hidden';}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
@@ -166,7 +172,57 @@ subInvoices.forEach(x=>add('Monatsabrechnung',x.invoice_number||x.billing_month,
 zipInvoices.forEach(x=>add('Zipmend',x.invoice_number,x.order_number+' · '+x.origin+' → '+x.destination,'zipmend',[x.invoice_number,x.order_number,x.origin,x.destination,x.transport_date].join(' ')));
 return out;}
 function renderGlobalSearch(){const input=$('globalSearch'),box=$('globalSearchResults');if(!input||!box)return;const q=input.value.trim();if(q.length<2){box.classList.add('hidden');box.innerHTML='';return;}const items=globalSearchItems(q);box.innerHTML=items.length?items.map((x,i)=>'<button type="button" data-global-index="'+i+'"><strong>'+esc(x.label)+'</strong><small>'+esc(x.type)+' · '+esc(x.detail)+'</small></button>').join(''):'<p class="muted" style="padding:10px">Keine passenden Einträge gefunden.</p>';box.classList.remove('hidden');box._items=items;}
-function openAppTab(id){document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('hidden',x.id!==id));document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('secondary',x.dataset.tab!==id));window.scrollTo({top:0,behavior:'smooth'});}
+
+const ADMIN_MODULES=[["dashboard","Dashboard"],["daily","Arbeitszeiten"],["tours","Tourenliste"],["employees","Fahrer"],["report","Monatsbericht"],["routeLinks","Touren & Apotheken"],["blocksView","Fuhrpark"],["zipmend","Zipmend"],["finanzen","Finanzen"]];
+function canView(id){return currentRole==="super_admin"||currentPermissions?.[id]?.view===true;}
+function canEdit(id){return currentRole==="super_admin"||currentPermissions?.[id]?.edit===true;}
+function applyPermissions(){
+ document.querySelectorAll('[data-tab]').forEach(b=>{const id=b.dataset.tab;b.classList.toggle('hidden',id!=="admin"&&!canView(id));});
+ document.querySelectorAll('.tab').forEach(sec=>{if(sec.id!=="admin"&&!canView(sec.id))sec.classList.add('hidden');});
+ $('adminNav').classList.toggle('hidden',currentRole!=="super_admin"&&currentRole!=="admin");
+}
+function openAppTab(id){
+ if(id==="admin"&&!["super_admin","admin"].includes(currentRole)){notice("Kein Zugriff auf die Administration.",true);return;}
+ if(id!=="admin"&&!canView(id)){notice("Für diesen Bereich hast du keine Berechtigung.",true);return;}
+ document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('hidden',x.id!==id));
+ document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('secondary',x.dataset.tab!==id));
+ window.scrollTo({top:0,behavior:'smooth'});
+ if(id==="admin")loadAdminUsers().catch(e=>notice(e.message,true));
+}
+function permissionMarkup(prefix,perms={}){
+ return ADMIN_MODULES.map(([id,label])=>{const p=perms[id]||{};return '<div class="admin-perm-item"><strong>'+esc(label)+'</strong><label><input type="checkbox" data-perm-view="'+prefix+':'+id+'" '+(p.view?'checked':'')+'> Ansehen</label><label><input type="checkbox" data-perm-edit="'+prefix+':'+id+'" '+(p.edit?'checked':'')+'> Bearbeiten</label></div>';}).join('');
+}
+function collectPermissions(root,prefix){
+ const out={};for(const [id] of ADMIN_MODULES){out[id]={view:!!root.querySelector('[data-perm-view="'+prefix+':'+id+'"]')?.checked,edit:!!root.querySelector('[data-perm-edit="'+prefix+':'+id+'"]')?.checked};if(out[id].edit)out[id].view=true;}return out;
+}
+async function adminAction(body){
+ const {data,error}=await db.functions.invoke('ra-admin-users',{body});
+ if(error)throw error;if(data?.error)throw Error(data.error);return data;
+}
+async function loadAdminUsers(){
+ if(!["super_admin","admin"].includes(currentRole))return;
+ const data=await adminAction({action:"list"});adminUsers=data.users||[];
+ $('adminUsersList').innerHTML=adminUsers.length?adminUsers.map(u=>{
+ const prefix=u.user_id;
+ return '<div class="admin-user-card" data-admin-user="'+esc(prefix)+'"><div class="admin-user-head"><div><strong>'+esc(u.email||"Ohne E-Mail")+'</strong><div class="muted">'+esc(u.role)+' · '+(u.is_active?'Aktiv':'Deaktiviert')+'</div></div><div class="actions"><label>Rolle <select data-user-role><option value="employee" '+(u.role==="employee"?'selected':'')+'>Mitarbeiter</option><option value="admin" '+(u.role==="admin"?'selected':'')+'>Admin</option></select></label><label><input type="checkbox" data-user-active '+(u.is_active?'checked':'')+'> Aktiv</label><button type="button" data-user-save>Speichern</button></div></div><div class="admin-perm-grid">'+permissionMarkup(prefix,u.permissions||{})+'</div></div>';
+ }).join(''):'<p class="muted">Noch keine Mitarbeiterkonten angelegt.</p>';
+}
+$('adminNewPermissions').innerHTML=permissionMarkup("new",Object.fromEntries(ADMIN_MODULES.map(([id])=>[id,{view:true,edit:false}])));
+$('adminCreateForm').addEventListener('submit',async e=>{
+ e.preventDefault();try{
+ const permissions=collectPermissions($('adminNewPermissions'),"new");
+ await adminAction({action:"create",email:$('adminNewEmail').value.trim(),password:$('adminNewPassword').value,permissions});
+ $('adminCreateForm').reset();$('adminNewPermissions').innerHTML=permissionMarkup("new",Object.fromEntries(ADMIN_MODULES.map(([id])=>[id,{view:true,edit:false}])));
+ await loadAdminUsers();notice("Benutzerkonto wurde erstellt.");
+ }catch(x){notice(x.message,true);}
+});
+$('adminUsersList').addEventListener('click',async e=>{
+ const b=e.target.closest('[data-user-save]');if(!b)return;
+ const card=b.closest('[data-admin-user]');const id=card.dataset.adminUser;
+ try{await adminAction({action:"update",user_id:id,role:card.querySelector('[data-user-role]').value,is_active:card.querySelector('[data-user-active]').checked,permissions:collectPermissions(card,id)});notice("Berechtigungen gespeichert.");await loadAdminUsers();}catch(x){notice(x.message,true);}
+});
+$('adminRefresh').addEventListener('click',()=>loadAdminUsers().catch(e=>notice(e.message,true)));
+
 function renderFleet(){const v=fleetVehicles.find(x=>x.id===selectedFleetVehicle);$('fleetVehicleRows').innerHTML=fleetVehicles.length?'<div class="grid fleet-grid" style="grid-template-columns:repeat(3,minmax(0,1fr));gap:16px">'+fleetVehicles.map(x=>{const list=fleetTours.filter(t=>t.vehicle_id===x.id);return '<div class="card fleet-card"><div class="fleet-card-head"><div><h3>'+esc(x.vehicle_name)+'</h3><strong>'+esc(x.license_plate)+'</strong></div><span class="badge">'+list.length+' Touren</span><button type="button" class="fleet-remove-btn" title="Fahrzeug entfernen" aria-label="Fahrzeug entfernen" data-del-fleet-vehicle="'+x.id+'">−</button></div>'+(x.notes?'<p class="muted">'+esc(x.notes)+'</p>':'')+'<div class="fleet-tour-list">'+(list.length?'<ul>'+list.map(t=>'<li><strong>'+esc(t.tour_number)+'</strong>'+(t.notes?' – '+esc(t.notes):'')+' <button type="button" class="fleet-tour-remove" title="Tour entfernen" aria-label="Tour entfernen" data-del-fleet-tour="'+t.id+'">−</button></li>').join('')+'</ul>':'<p class="muted">Noch keine Touren zugeordnet.</p>')+'</div><div class="fleet-card-actions"><button type="button" data-select-fleet="'+x.id+'">+ Tour hinzufügen</button><button type="button" class="secondary" data-select-fleet="'+x.id+'">Fahrzeug anzeigen</button></div></div>';}).join('')+'</div>':'<p class="muted">Noch keine Fahrzeuge vorhanden. Über „Fahrzeug hinzufügen“ kannst du dein erstes Fahrzeug anlegen.</p>';$('fleetSelectedPanel').classList.toggle('hidden',!v);if(v){$('fleetSelectedTitle').textContent=v.vehicle_name+' — '+v.license_plate;$('fleetTourCount').textContent=fleetTours.filter(t=>t.vehicle_id===v.id).length+' Touren';}}
 
 ['zipNet','zipVat'].forEach(id=>$(id).addEventListener('input',updateZipTotals));
@@ -571,9 +627,17 @@ $('globalSearch').addEventListener('focus',renderGlobalSearch);
 $('activityRefresh').addEventListener('click',async()=>{try{activityLogs=await run(db.from('activity_logs').select('*').order('created_at',{ascending:false}).limit(30));renderActivityLog();}catch(x){notice('Aktivitäten konnten nicht geladen werden: '+x.message,true);}});
 $('globalSearchResults').addEventListener('click',e=>{const b=e.target.closest('[data-global-index]');if(!b)return;const item=$('globalSearchResults')._items?.[Number(b.dataset.globalIndex)];if(!item)return;openAppTab(item.tab);$('globalSearchResults').classList.add('hidden');$('globalSearch').value='';$('globalSearch').blur();});
 document.addEventListener('click',e=>{if(!e.target.closest('.global-search-wrap'))$('globalSearchResults')?.classList.add('hidden');});
+document.querySelector('.tabs').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(b)openAppTab(b.dataset.tab);});
+
 $('brandHome').addEventListener('click',e=>{e.preventDefault();if(!$('app').classList.contains('hidden')){document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('hidden',x.id!=='dashboard'));document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('secondary',x.dataset.tab!=='dashboard'));window.scrollTo({top:0,behavior:'smooth'});}else window.scrollTo({top:0,behavior:'smooth'});});
 $('authForm').addEventListener('submit',async e=>{e.preventDefault();try{const {data,error}=await db.auth.signInWithPassword({email:$('email').value,password:$('password').value});if(error)throw error;user=data.user;await startApp();}catch(x){notice(x.message,true);}});
-async function startApp(){clearNotice();$('auth').classList.add('hidden');$('app').classList.remove('hidden');document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('hidden',x.id!=='dashboard'));document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('secondary',x.dataset.tab!=='dashboard'));$('userArea').innerHTML=`<span>${esc(user.email)}</span> <button class="secondary" id="logout">Abmelden</button>`;$('logout').onclick=async()=>{await db.auth.signOut();location.reload();};document.querySelector('[data-work-date]').value=today();$('reportMonth').value=monthNow();await load();fillRoutePharmacyNumbers(1);await loadRoutePharmacyOverrides();}
+async function startApp(){
+ clearNotice();
+ const {data:roleRow,error:roleError}=await db.from('app_user_roles').select('role,permissions,is_active').eq('user_id',user.id).maybeSingle();
+ if(roleError||!roleRow||!roleRow.is_active){await db.auth.signOut();user=null;$('auth').classList.remove('hidden');$('app').classList.add('hidden');notice("Dein Benutzerkonto ist nicht freigeschaltet.",true);return;}
+ currentRole=roleRow.role;currentPermissions=roleRow.permissions||{};
+ $('auth').classList.add('hidden');$('app').classList.remove('hidden');applyPermissions();
+document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('hidden',x.id!=='dashboard'));document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('secondary',x.dataset.tab!=='dashboard'));$('userArea').innerHTML=`<span>${esc(user.email)}</span> <button class="secondary" id="logout">Abmelden</button>`;$('logout').onclick=async()=>{await db.auth.signOut();location.reload();};document.querySelector('[data-work-date]').value=today();$('reportMonth').value=monthNow();await load();fillRoutePharmacyNumbers(1);await loadRoutePharmacyOverrides();}
 function cancelTourEdit(){$('tourEditId').value='';$('tourForm').reset();$('tourSaveBtn').textContent='Tour hinzufügen';$('tourCancelEdit').classList.add('hidden');}
 $('tourCancelEdit').addEventListener('click',cancelTourEdit);
 $('tourForm').addEventListener('submit',async e=>{e.preventDefault();try{const id=$('tourEditId').value,payload={tour_number:$('tourNumber').value.trim(),default_hours:Number($('tourHours').value)};if(id){await run(db.from('tours').update(payload).eq('id',id));cancelTourEdit();notice('Die Tour und ihre Stunden wurden aktualisiert.');}else{await run(db.from('tours').insert({user_id:user.id,...payload}));$('tourForm').reset();notice('Die Tour wurde hinzugefügt.');}await load();}catch(x){notice(x.message,true);}});
