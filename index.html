@@ -641,7 +641,7 @@ $('brandHome').addEventListener('click',e=>{e.preventDefault();if(!$('app').clas
 $('authForm').addEventListener('submit',async e=>{e.preventDefault();try{const {data,error}=await db.auth.signInWithPassword({email:$('email').value,password:$('password').value});if(error)throw error;user=data.user;await startApp();}catch(x){notice(x.message,true);}});
 async function startApp(){
  clearNotice();
- const {data:roleRow,error:roleError}=await db.from('app_user_roles').select('role,permissions,is_active').eq('user_id',COMPANY_OWNER_ID).maybeSingle();
+ const {data:roleRow,error:roleError}=await db.from('app_user_roles').select('role,permissions,is_active').eq('user_id',user.id).maybeSingle();
  if(roleError||!roleRow||!roleRow.is_active){await db.auth.signOut();user=null;$('auth').classList.remove('hidden');$('app').classList.add('hidden');notice("Dein Benutzerkonto ist nicht freigeschaltet.",true);return;}
  currentRole=roleRow.role;currentPermissions=roleRow.permissions||{};
  $('auth').classList.add('hidden');$('app').classList.remove('hidden');applyPermissions();
